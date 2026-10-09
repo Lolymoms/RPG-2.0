@@ -6,15 +6,17 @@ level_up_experience = 100
 
 #creates player data
 class Player:
-    def __init__(self, class_name, level, experience, gold, health, max_health, dexterity, strength, armor, melee_skill, ranged_skill, intelligence, melee, ranged, special_attack, special_attack_available):
+    def __init__(self, class_name, level, experience, gold, health, dexterity, strength, armor, melee_skill, ranged_skill, intelligence, melee, ranged, special_attack, special_attack_available, class_action, class_action_available):
         self.class_name = class_name
         self.level = level
         self.experience = experience
         self.gold = gold
         self.health = health
-        self.max_health = max_health
+        self.max_health = health
         self.dexterity = dexterity
+        self.max_dexterity = dexterity
         self.strength = strength
+        self.max_strength = strength
         self.armor = armor
         self.melee_skill = melee_skill
         self.ranged_skill = ranged_skill
@@ -23,6 +25,8 @@ class Player:
         self.ranged = ranged
         self.special_attack = special_attack
         self.special_attack_available = special_attack_available
+        self.class_action = class_action
+        self.class_action_available = class_action_available
 
     def stat_modifier(self, stat):
         return (stat - 10)//2
@@ -58,6 +62,14 @@ class Player:
         if self.experience >= level_up_experience:
             print("You level up! make the logic later lowk")
 
+    def rage(self):
+        self.dexterity -= 3
+        self.strength += 3
+
+    def rage_end(self):
+        self.dexterity = self.max_dexterity
+        self.strength = self.max_strength
+
 
 class Item:
     def __init__(self, name, type, amount=1, healing=0, damage=0, damage_type='None', attack_type='None'):
@@ -88,15 +100,15 @@ def player_selection():
         class_selection = input("What would you like to be? ").capitalize()
         if class_selection == 'Barbarian':
             print("You are now a Barbarian!")
-            return Player('Barbarian', 1, 0, 0, 24, 24, 7, 15, 2, 2, 0, 6, sword, bow, 'Basic', True)
+            return Player('Barbarian', 1, 0, 0, 24, 7, 15, 2, 2, 0, 6, sword, bow, 'Basic', True, 'Basic', True)
         elif class_selection == 'Ranger':
             print("You are now a Ranger!")
-            return Player('Ranger', 1, 0, 0, 18, 18, 15, 8, 1, 1, 3, 12, sword, bow, 'Basic', True)
+            return Player('Ranger', 1, 0, 0, 18, 15, 8, 1, 1, 3, 12, sword, bow, 'Basic', True, 'Basic', True)
         elif class_selection == 'Rogue':
             print("You are now a Rogue!")
-            return Player('Rogue', 1, 0, 0, 20, 20, 15, 12, 0, 2, 1, 10, sword, bow, 'Basic', True)
+            return Player('Rogue', 1, 0, 0, 20, 15, 12, 0, 2, 1, 10, sword, bow, 'Basic', True, 'Basic', True)
         elif class_selection == 'Hunter':
             print("You are now a Hunter!")
-            return Player('Hunter', 1, 0, 5, 22, 22, 12, 10, 1, 2, 2, 12, sword, bow, 'Basic', True)
+            return Player('Hunter', 1, 0, 5, 22, 12, 10, 1, 2, 2, 12, sword, bow, 'Basic', True, 'Basic', True)
         else:
             print("Please select a valid class!")

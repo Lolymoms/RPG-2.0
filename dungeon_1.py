@@ -122,17 +122,29 @@ def reaction_time(type):
 #use item
 def encounter(player, enemy):
     fighting = True
-    run_text = '/Run'
-    special_attack_text = ''
-    class_action_text = '/Class action'
-    player_options = ['Use item', 'Run', 'Attack', 'Dodge', 'Class action']
+    hunter_net = False
+    ranger_class_action = False
+    barb_rage = 0
+    player_options = ['Use item', 'Run', 'Attack', 'Dodge']
     attack_options = ['Melee', 'Ranged']
+
+    if player.class_action_available:
+        class_action_text = '/Class action'
+        player_options.append('Class action')
+    else:
+        class_action_text = ''
+
     if player.special_attack_available:
         special_attack_text = '/Special attack'
         attack_options.append('Special attack')
+    else:
+        special_attack_text = ''
+
     if enemy.boss:
         run_text = ''
         player_options.remove('Run')
+    else:
+        run_text = '/Run'
 
     if player.level < enemy.level:
         underleveled = True
@@ -141,6 +153,16 @@ def encounter(player, enemy):
     print(f"You are fighting a {enemy.name}!")
 
     while fighting:
+        barb_rage -= 1
+        if barb_rage >= 1:
+            print(f"You have {barb_rage} rounds of rage left.")
+
+        if hunter_net == False:
+            enemy.restore_dex()
+
+        if barb_rage == 0:
+            player.rage_end()
+
         dodged = False
         print(f"The {enemy.name} has {enemy.health} health left.")
         action = player_action(f"It is your turn. What do you do? (Attack/Dodge/Use item{class_action_text}{run_text}) ", player_options)
@@ -163,8 +185,31 @@ def encounter(player, enemy):
             else:
                 print("You don't manage to dodge the attack.")
         elif action == 'Class action':
-            print("This requires me to make class actions, which don't exist.")
+            class_action_text = ''
+            player.class_action_available = False
+            player_options.remove('Class action')
+            if player.class_action == 'Basic':
+                if player.class_name == 'Barbarian':
+                    print(f"You are enraged! Your strength increases, but your dexterity decreases for 2 turns.")
+                    player.rage()
+                    barb_rage = 3
+                    input()
+                elif player.class_name == 'Ranger':
+                    print("You now have a multiattack! You can shoot 2 arrows at once.")
+                    ranger_class_action = True
+                    input()
+                elif player.class_name == 'Rogue':
+                    print("You inspect your enemy to take advantage of it's vulnerabilities and spot its resistences.")
+                    print(f"The {enemy.name} is vulnerable to {enemy.vulnerable} attacks.")
+                    print(f"The {enemy.name} is resistant to {enemy.resistant} attacks.")
+                    input()
+                elif player.class_name == 'Hunter':
+                    print("You deploy a net on your enemy. Their dexterity is halved for one round.")
+                    enemy.half_dex()
+                    hunter_net = True
+                    input()
         elif action == 'Attack':
+            hunter_net = False
             action = player_action(f"How do you want to attack? (Melee/Ranged{special_attack_text}) ", attack_options)
             if action == 'Melee':
                 if (random.randint(1,10) + player.stat_modifier(player.strength) + player.skill_modifier(player.melee_skill)) > (random.randint(1,10) + enemy.stat_modifier(enemy.dexterity)):
@@ -173,6 +218,15 @@ def encounter(player, enemy):
                     print("You miss.")
                     input()
             elif action == 'Ranged':
+                if ranger_class_action:
+                    print("You use your multiattack!")
+                    ranger_class_action = False
+                    if (random.randint(1,10) + player.stat_modifier(player.dexterity) + player.skill_modifier(player.ranged_skill)) > (random.randint(1,10) + enemy.stat_modifier(enemy.dexterity)):
+                        damage_calc(enemy, player, 'Ranged')
+                    else:
+                        print("You miss.")
+                        input()
+
                 if (random.randint(1,10) + player.stat_modifier(player.dexterity) + player.skill_modifier(player.ranged_skill)) > (random.randint(1,10) + enemy.stat_modifier(enemy.dexterity)):
                     damage_calc(enemy, player, 'Ranged')
                 else:

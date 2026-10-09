@@ -5,6 +5,7 @@ class Enemy:
         self.amount = amount
         self.health = health
         self.dexterity = dexterity
+        self.max_dexterity = dexterity
         self.armor = armor
         self.strength = strength
         self.melee = melee
@@ -25,6 +26,12 @@ class Enemy:
         self.health -= damage
         if self.health < 0:
             self.health = 0
+
+    def half_dex(self):
+        self.dexterity //= 2
+
+    def restore_dex(self):
+        self.dexterity = self.max_dexterity
 
 
 feral_dog = Enemy('Feral Dog', 1, 1, 15, 8, 1, 14, 5)
