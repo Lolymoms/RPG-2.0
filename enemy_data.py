@@ -27,5 +27,5 @@ class Enemy:
             self.health = 0
 
 
-goblins = Enemy('Goblins', 1, 3, 5, 5, 1, 5, 7, 6)
-feral_dog = Enemy('Feral Dog', 1, 1, 15, 10, 2, 5, 5)
+feral_dog = Enemy('Feral Dog', 1, 1, 15, 8, 1, 14, 5)
+cave_spider = Enemy('Cave Spider', 1, 1, 10, 17, 0, 14, 5)

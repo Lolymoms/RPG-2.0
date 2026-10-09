@@ -46,14 +46,14 @@ def damage_calc(enemy, player, type):
         input()
         return
     elif type == 'Enemy melee':
-        damage = max(1, (random.randint(int(enemy.melee * 0.7),int(enemy.melee * 1.3))+ enemy.stat_modifier(enemy.strength) - player.armor))
+        damage = int(max(1, (random.randint(int(enemy.melee * 0.7),int(enemy.melee * 1.3))+ enemy.stat_modifier(enemy.strength) - player.armor)))
         player.take_damage(damage)
         print(f"The {enemy.name} hits you with a melee attack for {damage} damage.")
         print(f"You have {player.health} health left.")
         input()
         return
     elif type == 'Enemy ranged':
-        damage = max(1, (random.randint(int(enemy.ranged * 0.7),int(enemy.ranged * 1.3))+ enemy.stat_modifier(enemy.dexterity) - player.armor))
+        damage = int(max(1, (random.randint(int(enemy.ranged * 0.7),int(enemy.ranged * 1.3))+ enemy.stat_modifier(enemy.dexterity) - player.armor)))
         player.take_damage(damage)
         print(f"The {enemy.name} hits you with a ranged attack for {damage} damage.")
         print(f"You have {player.health} health left.")
@@ -143,7 +143,7 @@ def encounter(player, enemy):
     while fighting:
         dodged = False
         print(f"The {enemy.name} has {enemy.health} health left.")
-        action = player_action(f"It is your turn. What do you do? (Use item/Attack/Dodge{class_action_text}{run_text}) ", player_options)
+        action = player_action(f"It is your turn. What do you do? (Attack/Dodge/Use item{class_action_text}{run_text}) ", player_options)
         if action == 'Run':
             if underleveled and ((player.stat_modifier(player.dexterity) + (enemy.level - player.level)) + random.randint(1,10)) > (enemy.stat_modifier(enemy.dexterity) + random.randint(1,10)):
                 print("You manage to escape. You run into a random room.")
