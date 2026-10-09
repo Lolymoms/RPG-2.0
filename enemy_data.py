@@ -1,5 +1,5 @@
 class Enemy:
-    def __init__(self, name, level, amount, health, dexterity, armor, strength, damage, damage_ranged=0, vulnerable='None', resistant='None', boss='False'):
+    def __init__(self, name, level, amount, health, dexterity, armor, strength, melee, ranged=0, vulnerable='None', resistant='None', boss=False, special_attack='None', special_attack_available=False):
         self.name = name
         self.level = level
         self.amount = amount
@@ -7,11 +7,19 @@ class Enemy:
         self.dexterity = dexterity
         self.armor = armor
         self.strength = strength
-        self.damage = damage
-        self.damage_ranged = damage_ranged
+        self.melee = melee
+        self.ranged = ranged
         self.vulnerable = vulnerable
         self.resistant = resistant
         self.boss = boss
+        self.special_attack = special_attack
+        self.special_attack_available = special_attack_available
+
+    def stat_modifier(self, stat):
+        return (stat - 10)/2
+    
+    def skill_modifier(self, skill):
+        return skill - 2
 
     def take_damage(self, damage):
         self.health -= damage
@@ -20,3 +28,4 @@ class Enemy:
 
 
 goblins = Enemy('Goblins', 1, 3, 5, 5, 1, 5, 7, 6)
+feral_dog = Enemy('Feral Dog', 1, 1, 15, 10, 2, 5, 5)
