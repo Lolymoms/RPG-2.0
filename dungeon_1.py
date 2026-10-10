@@ -23,6 +23,7 @@ dungeon_visited_1 = [
 ]
 
 def player_action(text, options):
+
     while True:
         choice = input(text).capitalize()
         if choice in options:
