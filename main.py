@@ -163,6 +163,56 @@ def map(dungeon_map, dungeon_visited):
 
     input()
 
+
+def inventory():
+    player_options = ['Melee', 'Ranged', 'Use consumable', 'Leave']
+    melee_weapons = []
+    ranged_weapons = []
+    print("Your current iventory is as follows.")
+    for item in player_data.player_inventory:
+        print(item.name, ':', item.amount)
+
+    while True:
+        inventory_selection = input('What would you like to do? (Melee/Ranged/Use consumable) ').capitalize()
+        if inventory_selection in player_options:
+            break
+        else:
+            print("Please select a valid option! Type leave to leave.")
+
+    if inventory_selection == 'Leave':
+        return
+    else:
+        for item in player_data.player_inventory:
+            if item.type == inventory_selection:
+                print(f"Name: {item.name} - Damage: {item.damage} {item.damage_type} - Attack type: {item.attack_type}")
+                if inventory_selection == 'Melee':
+                    melee_weapons.append(item.name)
+                else:
+                    ranged_weapons.append(item.name)
+
+        inventory_selection = inventory_selection.lower()
+        inventory_selection_2 = input(f"Would you like to equip a new {inventory_selection} weapon? (Yes/No) ").capitalize()
+        if inventory_selection_2 == 'Yes':
+            while True:
+                inventory_selection_2 = input("What would you like to equip? ").capitalize()
+                if inventory_selection_2 in melee_weapons and inventory_selection == 'melee':
+                    print(f"{inventory_selection_2} equipped!")
+                    for item in player_data.player_inventory:
+                        if inventory_selection_2 == item.name:
+                            player.melee = item
+                            return
+                elif inventory_selection_2 in ranged_weapons and inventory_selection == 'ranged':
+                    print(f"{inventory_selection_2} equipped!")
+                    for item in player_data.player_inventory:
+                        if inventory_selection_2 == item.name:
+                            player.ranged = item
+                            return
+                else:
+                    print("Please pick a valid item")
+        else:
+            return
+
+
 player = player_data.player_selection()
 
 #selection between moving, map, and inventory
@@ -174,7 +224,7 @@ while in_dungeon_1:
     elif action == 'Map':
         map(dungeon_1.dungeon_map_1, dungeon_1.dungeon_visited_1)
     elif action == 'Inventory':
-        pass
+        inventory()
     else:
         print("Please enter a valid option!")
 

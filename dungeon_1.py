@@ -166,7 +166,7 @@ def encounter(player, enemy):
 
         dodged = False
         print(f"The {enemy.name} has {enemy.health} health left.")
-        action = player_action(f"It is your turn. What do you do? (Attack/Dodge/Use item{class_action_text}{run_text}) ", player_options)
+        action = player_action(f"It is your turn. What do you do? (Attack/Dodge/Use consumable{class_action_text}{run_text}) ", player_options)
         if action == 'Run':
             if underleveled and ((player.stat_modifier(player.dexterity) + (enemy.level - player.level)) + random.randint(1,10)) > (enemy.stat_modifier(enemy.dexterity) + random.randint(1,10)):
                 print("You manage to escape. You run into a random room.")

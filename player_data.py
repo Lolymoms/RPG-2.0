@@ -72,7 +72,7 @@ class Player:
 
 
 class Item:
-    def __init__(self, name, type, amount=1, healing=0, damage=0, damage_type='None', attack_type='None'):
+    def __init__(self, name, type, amount=1, healing=0, damage=0, damage_type='None', attack_type='Medium'):
         self.name = name
         self.type = type
         self.damage = damage
@@ -81,9 +81,9 @@ class Item:
         self.amount = amount
         self.healing = healing
 
-sword = Item('Sword', 'Melee', damage=6, damage_type='Slashing', attack_type='Normal')
+sword = Item('Sword', 'Melee', damage=6, damage_type='Slashing')
 bow = Item('Bow', 'Ranged', damage=8, damage_type='Piercing')
-arrows = Item('Arrows', 'Consumable', 20)
+arrows = Item('Arrows', 'Usable', 20)
 
 player_inventory = [sword, bow, arrows]
 
