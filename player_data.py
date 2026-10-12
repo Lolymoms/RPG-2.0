@@ -1,4 +1,5 @@
 import sys
+import random
 
 level_up_experience = 100
 
@@ -81,11 +82,19 @@ class Item:
         self.amount = amount
         self.healing = healing
 
+    def add_item(self, amount):
+        self.amount += amount
+
+    def use_item(self, amount):
+        self.amount -= amount
+        
+
 sword = Item('Sword', 'Melee', damage=6, damage_type='Slashing')
 bow = Item('Bow', 'Ranged', damage=8, damage_type='Piercing')
 arrows = Item('Arrows', 'Usable', 20)
+healing_potion = Item('Healing potion', 'Consumable', 0, healing=random.randint(4,8))
 
-player_inventory = [sword, bow, arrows]
+player_inventory = [sword, bow, arrows, healing_potion]
 
 def player_selection():
     print("It's time to choose your class! Here are the options.")
@@ -95,7 +104,7 @@ def player_selection():
     input()
     print("Rogue. A sneaky, quiet, and ambush based class. If you want to sneak up to an enemy to kill it, you're a rogue.")
     input()
-    print("Last but not least, the hunter. A jack of all trades, but master of none. If you don't know what to pick, you're a hunter.")
+    print("Hunter. Last but not least, the hunter. A jack of all trades, but master of none. If you don't know what to pick, you're a hunter.")
     while True:
         class_selection = input("What would you like to be? ").capitalize()
         if class_selection == 'Barbarian':

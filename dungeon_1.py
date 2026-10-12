@@ -1,26 +1,132 @@
 import random
 import time
+import enemy_data
 
-dungeon_map_1 = [
-    ['Entrance' , 'Empty', 'Empty', 'Empty'],
-    ['Empty' , 'Empty', 'Empty', 'Empty'],
-    ['Empty' , 'Empty', 'Empty', 'Empty'],
-    ['Empty' , 'Empty', 'Empty', 'Staircase']
-]
+def enemy_room(player):
+    print("You walk into the room and see something in the shadows...")
+    input()
+    number = random.randint(1, (40 + (player.level * 10)))
 
-dungeon_action_1 = [
-    [True, False, False, False],
-    [False, False, False, False],
-    [False, False, False, False],
-    [False, False, False, False]
-]
+    #impossible for rn
+    if number == 2000: 
+        print("You walk further into the room and see a group of goblins!")
+        encounter(player) #insert goblins here
+        #insert goblins function here
+    elif number <= 40:
+        print("You walk further into the room and see a feral dog!")
+        encounter(player, enemy_data.feral_dog)
+    elif number <= 60:
+        print("You walk further into the room and see a cave spider!")
+        encounter(player, enemy_data.cave_spider)
+    # elif number <= 80:
+    #     print("You walk further into the room and see a strange man")
+    #     print("not done for now, if you see this just ignore :3")
+    #     #do this later
+    #     #insert wizard function here. There should be a way to talk your way out of this one
+    # elif number <= 99:
+    #     print("You walk further into the room and see a giant snake!")
+    #     print("You cannot determine if it's a python...")
+    #     returning = encounter('Small Python', 25, 15, 6, 5, 3, 3)
+    #     #insert small_python function here
+    # elif number > 99:
+    #     print("You have a bad feeling about this one...")
+    #     input("")
+    #     print("You walk further into the room and see an orc")
+    #     print("Unlucky for you, it's a full sized orc!")
+    #     returning = encounter ('Orc', 40, 20, 0, 6, 3, 5)
+    #     #insert orc function here
+    else:
+        print("Something broke")
 
-dungeon_visited_1 = [
-    [True, False, False, False],
-    [False, False, False, False],
-    [False, False, False, False],
-    [False, False, False, False]
-]
+def chest_room(player):
+    print("You walk into a room with a chest in it.")
+    action = input("What do you want to do? (Open/Leave) ").capitalize()
+
+    if action == 'Open':
+        #generates a random number to determine reward/mimic
+        randomnum = random.randint(1,10)
+        #if the random number is 4 or below, it's 5 gold
+        if randomnum < 5:
+            print("You open the chest and find some gold!")
+            print("+5 gold")
+            player.add_gold(5)
+            print(f"You have {player.gold} gold.")
+            input()
+        #if the random number is 5-9, it's a mimic
+        elif randomnum >= 5 and randomnum < 10:
+            print("You open the chest and are attacked by a mimic!")
+            damage = max(0, (4 - player.armor))
+            print(f"You lose {damage} HP.")
+            player.take_damage(damage)
+            print(f"You have {player.health} health left.")
+            input()
+        #if the random number is 10, there's a suit of armor
+        elif randomnum == 10:
+            print("You find an old suit of armor!")
+            print("The armor will give you 3 armor")
+            print(f"You have {player.armor}")
+            take_or_leave = input("Take it or leave it? (Take/Leave) ").capitalize()
+            #logic for taking or leaving the armor
+            if take_or_leave == 'Take':
+                print("You took the old armor")
+                player.armor = 3
+            else:
+                print("You decide not to take the old armor")
+        #if the player dies, kills them
+
+        print("There seems to be nothing else in the room.")
+        input()
+    else:
+        print("You decide to leave the chest.")
+
+def lore_room(player):
+    pass
+
+def key_room(player):
+    print("You walk into the room and see a key in a cabinet. It seems to shimmer in the dim torchlight.")
+    action = input("Take it? (Yes/No) ").capitalize()
+    if action == 'Yes':
+        from player_data import Item
+        from player_data import player_inventory
+        key = Item('Strange key', 'Item')
+        player_inventory.append(key)
+        print("You take the key. It's strangely heavy.")
+    else:
+        print("You decide to leave the key.")
+
+    print("There's nothing else to do in this room. You decide to leave.")
+    input()
+
+def vault_room(player):
+    print("You walk into the room and see a large door. It reminds you of a bank vault. It has a single keyhole.")
+    from player_data import player_inventory
+    for item in player_inventory:
+        if item.name == 'Strange key':
+            action = input("Use your strange key? (Yes/No) ").capitalize()
+            if action == 'Yes':
+                player_inventory.remove(item)
+                print("You use all of your might to open the vault.")
+                input()
+                print("After almost a minute of struggling, the vault opens!")
+                print("Inside you find 12 gold and a health potion.")
+                player.add_gold(12)
+                from player_data import healing_potion
+                healing_potion.add_item(1)
+                print(f"You have {player.gold} gold.")
+                print(f"You also have {healing_potion.amount} healing potions.")
+                input()
+                print("There's nothing else. You decide to leave.")
+                return
+            else:
+                print("You decide not to use your key. You leave.")
+                input()
+                return
+
+    print("You don't have anything to open the door with. You decide to leave.")
+    input()
+
+
+#all code below this comment is for the encounter() function except for the three dungeon maps
 
 def player_action(text, options):
 
@@ -300,4 +406,25 @@ def encounter(player, enemy):
             print(f"You have {player.experience} experience.")
             input()
             return 'Victory'
-        
+
+
+dungeon_map_1 = [
+    ['Entrance' , chest_room, vault_room, 'Rest'],
+    [enemy_room , 'Lore', chest_room, 'Boss entrance'],
+    [key_room , 'Rest', 'Wall', 'Boss'],
+    ['Lore' , 'Miniboss', 'Wall', 'Staircase']
+]
+
+dungeon_action_1 = [
+    [True, False, False, False],
+    [False, False, False, False],
+    [False, False, False, False],
+    [False, False, False, False]
+]
+
+dungeon_visited_1 = [
+    [True, False, False, False],
+    [False, False, False, False],
+    [False, False, False, False],
+    [False, False, False, False]
+]

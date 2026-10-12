@@ -1,5 +1,4 @@
 import player_data
-import enemy_data
 import dungeon_1
 
 #row is up and down
@@ -166,11 +165,13 @@ def map(dungeon_map, dungeon_visited):
 
 def inventory():
     player_options = ['Melee', 'Ranged', 'Use consumable', 'Leave']
+    consumables = []
     melee_weapons = []
     ranged_weapons = []
     print("Your current iventory is as follows.")
     for item in player_data.player_inventory:
-        print(item.name, ':', item.amount)
+        if item.amount > 0:
+            print(item.name, ':', item.amount)
 
     while True:
         inventory_selection = input('What would you like to do? (Melee/Ranged/Use consumable) ').capitalize()
@@ -181,34 +182,52 @@ def inventory():
 
     if inventory_selection == 'Leave':
         return
+    elif inventory_selection == 'Use consumable':
+        for item in player_data.player_inventory:
+            if item.type == 'Consumable':
+                print(f"Name: {item.name} - Amount: {item.amount} - Healing: {item.healing}")
+                consumables.append(item)
+        while True:
+            inventory_selection_2 = input("What would you like to use? ").capitalize()
+            if inventory_selection_2 == 'Leave':
+                return
+            else:
+                for item in consumables:
+                    if item.name == inventory_selection_2:
+                        print(f"You use a {inventory_selection_2}.")
+                        player.heal(item.healing)
+                        item.use_item(1)
+                        print(f"You heal {item.healing} HP! You now have {player.health} HP.")
+                        return
+
+                print("Please enter a valid consumable! Type leave to leave.")
     else:
         for item in player_data.player_inventory:
             if item.type == inventory_selection:
                 print(f"Name: {item.name} - Damage: {item.damage} {item.damage_type} - Attack type: {item.attack_type}")
                 if inventory_selection == 'Melee':
-                    melee_weapons.append(item.name)
+                    melee_weapons.append(item)
                 else:
-                    ranged_weapons.append(item.name)
+                    ranged_weapons.append(item)
 
         inventory_selection = inventory_selection.lower()
         inventory_selection_2 = input(f"Would you like to equip a new {inventory_selection} weapon? (Yes/No) ").capitalize()
         if inventory_selection_2 == 'Yes':
             while True:
                 inventory_selection_2 = input("What would you like to equip? ").capitalize()
-                if inventory_selection_2 in melee_weapons and inventory_selection == 'melee':
-                    print(f"{inventory_selection_2} equipped!")
-                    for item in player_data.player_inventory:
-                        if inventory_selection_2 == item.name:
-                            player.melee = item
+                for item in player_data.player_inventory:
+                    if item.type.lower() == inventory_selection:
+                        if item.name == inventory_selection_2:
+                            inventory_selection_2 = inventory_selection_2.lower()
+                            print(f"You equip the {inventory_selection_2}!")
+                            print(f"You now deal {item.damage} damage.")
+                            if inventory_selection == 'melee':
+                                player.melee = item
+                            else:
+                                player.ranged = item
                             return
-                elif inventory_selection_2 in ranged_weapons and inventory_selection == 'ranged':
-                    print(f"{inventory_selection_2} equipped!")
-                    for item in player_data.player_inventory:
-                        if inventory_selection_2 == item.name:
-                            player.ranged = item
-                            return
-                else:
-                    print("Please pick a valid item")
+                    
+                print("Please pick a valid item")
         else:
             return
 
@@ -231,14 +250,12 @@ while in_dungeon_1:
     #copied from old_RPG, remember to make this work for the new version
     if action == 'Move' or action == 'Run':
         #if the player has never been to a room, trigger the action in the room
-        if dungeon_1.dungeon_visited_1[dungeon_1.row][dungeon_1.column] == False:
-            dungeon_1.dungeon_visited_1[dungeon_1.row][dungeon_1.column] ==True
-            action = dungeon_1.dungeon_map_1[dungeon_1.row][dungeon_1.column]()
+        if dungeon_1.dungeon_visited_1[row][column] == False:
+            dungeon_1.dungeon_visited_1[row][column] = True
+            dungeon_1.dungeon_map_1[row][column](player)
         #if the player has been to a room, don't trigger anything
-        elif dungeon_1.dungeon_visited_1[dungeon_1.row][dungeon_1.column] == True:
+        elif dungeon_1.dungeon_visited_1[row][column] == True:
             if action == 'Move':
                 print("You've been here before! There's nothing more to do.")
                 print("")
 
-
-dungeon_1.encounter(player, enemy_data.feral_dog)
