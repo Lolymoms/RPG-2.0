@@ -1,5 +1,5 @@
 class Enemy:
-    def __init__(self, name, level, amount, health, dexterity, armor, strength, melee, ranged=0, vulnerable='None', resistant='None', boss=False, special_attack='None', special_attack_available=False):
+    def __init__(self, name, level, amount, health, dexterity, armor, strength, melee, ranged=0, vulnerable='None', resistant='None', boss=False, special_attack='None'):
         self.name = name
         self.level = level
         self.amount = amount
@@ -14,7 +14,8 @@ class Enemy:
         self.resistant = resistant
         self.boss = boss
         self.special_attack = special_attack
-        self.special_attack_available = special_attack_available
+        #if the enemy has a special attack, makes that attack available
+        self.special_attack_available = (special_attack != 'None')
 
     def stat_modifier(self, stat):
         return (stat - 10)/2

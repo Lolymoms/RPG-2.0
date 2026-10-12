@@ -2,22 +2,24 @@ import random
 import time
 import enemy_data
 
-def enemy_room(player):
+#tracks if the player has pried open the gates to escape the bossfight
+boss_gate = True
+
+def enemy_room(player, row, column):
     print("You walk into the room and see something in the shadows...")
     input()
     number = random.randint(1, (40 + (player.level * 10)))
 
-    #impossible for rn
-    if number == 2000: 
+    if number == 2000: #impossible for right now since it's a group
         print("You walk further into the room and see a group of goblins!")
-        encounter(player) #insert goblins here
+        action = encounter(player) #insert goblins here
         #insert goblins function here
     elif number <= 40:
         print("You walk further into the room and see a feral dog!")
-        encounter(player, enemy_data.feral_dog)
+        action = encounter(player, enemy_data.feral_dog)
     elif number <= 60:
         print("You walk further into the room and see a cave spider!")
-        encounter(player, enemy_data.cave_spider)
+        action = encounter(player, enemy_data.cave_spider)
     # elif number <= 80:
     #     print("You walk further into the room and see a strange man")
     #     print("not done for now, if you see this just ignore :3")
@@ -38,11 +40,15 @@ def enemy_room(player):
     else:
         print("Something broke")
 
-def chest_room(player):
+    if action == 'Victory':
+        dungeon_action_1[row][column] = True
+
+def chest_room(player, row, column):
     print("You walk into a room with a chest in it.")
     action = input("What do you want to do? (Open/Leave) ").capitalize()
 
     if action == 'Open':
+        dungeon_action_1[row][column] = True
         #generates a random number to determine reward/mimic
         randomnum = random.randint(1,10)
         #if the random number is 4 or below, it's 5 gold
@@ -79,13 +85,40 @@ def chest_room(player):
     else:
         print("You decide to leave the chest.")
 
-def lore_room(player):
+def lore_room(player, row, column):
     pass
 
-def key_room(player):
+def rest_room(player, row, column):
+    print("You walk into the room and see a small firepit on the floor. It seems to have been lit before.")
+    action = input("Do you want to light the firepit? (Yes/No) ").capitalize()
+    if action == 'Yes':
+        dungeon_action_1[row][column] = True
+        print("You light the firepit. You heal 50% max HP and regain all of your special abilities!")
+        player.rest()
+        print(f"You now have {player.health} health.")
+        print("There's nothing else in this room. You stay by the fireside for a bit, and then decide to leave.")
+        input()
+    else:
+        print("You decide to leave the firepit.")
+        input()
+
+def miniboss_1(player, row, column):
+    print("As you enter the room, you feel a sense of unease.")
+    action = input("Are you sure you want to continue? (Yes/No) ").capitalize()
+    if action == 'Yes':
+        dungeon_action_1[row][column] = True
+        from enemy_data import Enemy
+        gelatinous_cube = Enemy("Gelatinous Cube", 2, 1, 35, 6, 2, 11, 4, 0, 'Slashing', 'None', True, 'Basic', True)
+        encounter(player, gelatinous_cube)
+    else:
+        print("You decide to come back another time. You return to the room you came from.")
+        return 'Miniboss'
+
+def key_room(player, row, column):
     print("You walk into the room and see a key in a cabinet. It seems to shimmer in the dim torchlight.")
     action = input("Take it? (Yes/No) ").capitalize()
     if action == 'Yes':
+        dungeon_action_1[row][column] = True
         from player_data import Item
         from player_data import player_inventory
         key = Item('Strange key', 'Item')
@@ -97,13 +130,14 @@ def key_room(player):
     print("There's nothing else to do in this room. You decide to leave.")
     input()
 
-def vault_room(player):
+def vault_room(player, row, column):
     print("You walk into the room and see a large door. It reminds you of a bank vault. It has a single keyhole.")
     from player_data import player_inventory
     for item in player_inventory:
         if item.name == 'Strange key':
             action = input("Use your strange key? (Yes/No) ").capitalize()
             if action == 'Yes':
+                dungeon_action_1[row][column] = True
                 player_inventory.remove(item)
                 print("You use all of your might to open the vault.")
                 input()
@@ -125,6 +159,37 @@ def vault_room(player):
     print("You don't have anything to open the door with. You decide to leave.")
     input()
 
+def boss_entrance_1(player, row, column):
+    if player.level < 2:
+        print("You approach a strange red doorway. A deep sense of dread fills you. You feel weak and unprepared for the challenge that lies ahead.")
+        action = input("Are you sure you want to continue? (Yes/No) ").capitalize()
+        if action != 'Yes':
+            return 'Boss escape'
+    else:
+        action = 'Continue'
+
+    if action == 'Continue':
+        print("You walk into the room and all of your exits are cut off by gates! There's a strange red doorway ahead of you.")
+        print("You feel a deep sense of dread from the doorway. You notice that there's nothing holding the gates down.")
+        if boss_gate:
+            action = input("Try to pry open the gates to escape? (Yes/No) ").capitalize()
+        else:
+            print("You don't think it's a good idea to try and open the gates again, however. You decide it's better to face your fate.")
+            return 'Boss'
+
+        if action == 'Yes' and boss_gate:
+            if (random.randint(1,20) + player.stat_modifier(player.strength)) > 15:
+                print("With all of your might, you manage to pry the gates open! You can now escape.")
+                print("You also feel yourself get stronger. +25 EXP!")
+                player.add_experience(25)
+                boss_gate = False
+                input()
+                return 'Boss escape'
+            else:
+                print("You try to open the gates, but aren't strong enough.")
+    print("You decide to face your fate. You feel ready.")
+    return 'Boss'
+#finish this and check for bugs ^^^
 
 #all code below this comment is for the encounter() function except for the three dungeon maps
 
@@ -141,6 +206,13 @@ def damage_calc(enemy, player, type):
     if type == 'Melee':
         print(f"You hit the {enemy.name}.")
         damage = int(max(1, (random.randint(int(player.melee.damage * 0.7),int(player.melee.damage * 1.3))+ player.stat_modifier(player.strength) - enemy.armor)))
+        #if an enemy is vulnerable or resistant to a certain attack, deal double or half damage
+        if player.melee.damage_type == enemy.vulnerable:
+            damage *= 2
+            print("This attack does especially well!")
+        elif player.melee.damage_type == enemy.resistant:
+            damage //= 2
+            print("This attack seems less impactful.")
         enemy.take_damage(damage)
         print(f"You deal {damage} damage!")
         input()
@@ -148,6 +220,13 @@ def damage_calc(enemy, player, type):
     elif type == 'Ranged':
         print(f"You hit the {enemy.name}.")
         damage = int(max(1, (random.randint(int(player.ranged.damage * 0.7),int(player.ranged.damage * 1.3))+ player.stat_modifier(player.dexterity) - enemy.armor)))
+        #if an enemy is vulnerable or resistant to a certain attack, deal double or half damage
+        if player.ranged.damage_type == enemy.vulnerable:
+            damage *= 2
+            print("This attack does especially well!")
+        elif player.ranged.damage_type == enemy.resistant:
+            damage //= 2
+            print("This attack seems less impactful.")
         enemy.take_damage(damage)
         print(f"You deal {damage} damage!")
         input()
@@ -235,29 +314,35 @@ def encounter(player, enemy):
     player_options = ['Use item', 'Run', 'Attack', 'Dodge']
     attack_options = ['Melee', 'Ranged']
 
+    #if the player can use a class action, adds the respective text and option
     if player.class_action_available:
         class_action_text = '/Class action'
         player_options.append('Class action')
     else:
         class_action_text = ''
 
+    #if the player can use a special attack, adds the respective text and option
     if player.special_attack_available:
         special_attack_text = '/Special attack'
         attack_options.append('Special attack')
     else:
         special_attack_text = ''
 
+    #if the enmy is a boss, removes the run text and actual ability to run
     if enemy.boss:
         run_text = ''
         player_options.remove('Run')
     else:
         run_text = '/Run'
 
-    if player.level < enemy.level:
+    print(f"You are fighting a {enemy.name}!")
+
+    #if the player is underleveled, allows them to run away more easily
+    if player.level < enemy.level and enemy.boss == False:
         underleveled = True
+        print("You are underleveled! Running will be easier")
     else:
         underleveled = False
-    print(f"You are fighting a {enemy.name}!")
 
     while fighting:
         barb_rage -= 1
@@ -307,9 +392,12 @@ def encounter(player, enemy):
                     input()
                 elif player.class_name == 'Rogue':
                     print("You inspect your enemy to take advantage of it's vulnerabilities and spot its resistences.")
-                    print(f"The {enemy.name} is vulnerable to {enemy.vulnerable} attacks.")
-                    print(f"The {enemy.name} is resistant to {enemy.resistant} attacks.")
+                    print(f"The {enemy.name} is vulnerable to {(enemy.vulnerable).lower()} attacks.")
+                    print(f"The {enemy.name} is resistant to {(enemy.resistant).lower()} attacks.")
                     input()
+                    if player.level > 2:
+                        print("You also glean some more information about the enemy's statistics.")
+                        print(f"The enemy has a dexterity of {enemy.dexterity} and a strength of {enemy.strength}.")
                 elif player.class_name == 'Hunter':
                     print("You deploy a net on your enemy. Their dexterity is halved for one round.")
                     enemy.half_dex()
@@ -409,10 +497,10 @@ def encounter(player, enemy):
 
 
 dungeon_map_1 = [
-    ['Entrance' , chest_room, vault_room, 'Rest'],
+    ['Entrance' , chest_room, vault_room, rest_room],
     [enemy_room , 'Lore', chest_room, 'Boss entrance'],
-    [key_room , 'Rest', 'Wall', 'Boss'],
-    ['Lore' , 'Miniboss', 'Wall', 'Staircase']
+    [key_room , rest_room, 'Wall', 'Boss'],
+    ['Lore' , miniboss_1, 'Wall', 'Staircase']
 ]
 
 dungeon_action_1 = [

@@ -1,15 +1,14 @@
 import player_data
 import dungeon_1
+import random
 
 #row is up and down
 row = 0
 #column is left to right
 column = 0
-#used for the movement for loop
-in_dungeon_1 = True
 
 #gives all possible directions for a map of any size
-def movement(map):
+def movement(map, action):
     global row
     global column
     
@@ -48,32 +47,36 @@ def movement(map):
         else:
             possible_directions.append(direction)
 
-    print(f"You see {len(possible_directions)} exits to this room.")
+    if action == 'Move':
+        print(f"You see {len(possible_directions)} exits to this room.")
 
-    #adds every direction as text to a list, and prints them
-    for direction, text in text_directions.items():
-        if direction in possible_directions:
-            possible_directions_text.append(text)
-            print(f"{direction}) {text}")
+        #adds every direction as text to a list, and prints them
+        for direction, text in text_directions.items():
+            if direction in possible_directions:
+                possible_directions_text.append(text)
+                print(f"{direction}) {text}")
 
-    while True:
-        player_direction = input("Where do you go? ")
-        try:
-            player_direction = int(player_direction)
-            if player_direction in possible_directions:
-                break
-            else:
-                print("Please pick a valid direction!")
-        except ValueError:
-            player_direction = player_direction.capitalize()
-            if player_direction in possible_directions_text:
-                for direction, text in text_directions.items():
-                    if player_direction == text:
-                        player_direction = direction
-                        break
-                break
-            else:
-                print("Please pick a valid direction!")
+        #takes an input from the player to decide where to go, works with text and number
+        while True:
+            player_direction = input("Where do you go? ")
+            try:
+                player_direction = int(player_direction)
+                if player_direction in possible_directions:
+                    break
+                else:
+                    print("Please pick a valid direction!")
+            except ValueError:
+                player_direction = player_direction.capitalize()
+                if player_direction in possible_directions_text:
+                    for direction, text in text_directions.items():
+                        if player_direction == text:
+                            player_direction = direction
+                            break
+                    break
+                else:
+                    print("Please pick a valid direction!")
+    elif action == 'Run':
+        player_direction = random.choice(possible_directions)
 
     for direction, (row_change, column_change) in directions.items():
         if direction == player_direction:
@@ -234,12 +237,20 @@ def inventory():
 
 player = player_data.player_selection()
 
+#creates two variables required for the while loop
+in_dungeon_1 = True
+action = 0
+
 #selection between moving, map, and inventory
 while in_dungeon_1:
-    action = input("What would you like to do? (Move/Map/Inventory) ").capitalize()
+    if action == 0:
+        action = input("What would you like to do? (Move/Map/Inventory) ").capitalize()
+    #if the player runs from a fight, makes them go a random direction
+    elif action == 'Run':
+        movement(dungeon_1.dungeon_map_1, action)
 
     if action == 'Move':
-        movement(dungeon_1.dungeon_map_1)
+        movement(dungeon_1.dungeon_map_1, action)
     elif action == 'Map':
         map(dungeon_1.dungeon_map_1, dungeon_1.dungeon_visited_1)
     elif action == 'Inventory':
@@ -247,15 +258,15 @@ while in_dungeon_1:
     else:
         print("Please enter a valid option!")
 
-    #copied from old_RPG, remember to make this work for the new version
+    #if the player has taken an action in a room, skip it. Otherwise perform the action in the room
     if action == 'Move' or action == 'Run':
+        action = 0
         #if the player has never been to a room, trigger the action in the room
-        if dungeon_1.dungeon_visited_1[row][column] == False:
+        if dungeon_1.dungeon_action_1[row][column] == False:
             dungeon_1.dungeon_visited_1[row][column] = True
-            dungeon_1.dungeon_map_1[row][column](player)
+            action = dungeon_1.dungeon_map_1[row][column](player, row, column)
         #if the player has been to a room, don't trigger anything
-        elif dungeon_1.dungeon_visited_1[row][column] == True:
+        elif dungeon_1.dungeon_action_1[row][column] == True:
             if action == 'Move':
                 print("You've been here before! There's nothing more to do.")
                 print("")
-

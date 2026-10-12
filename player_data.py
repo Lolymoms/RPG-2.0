@@ -3,8 +3,6 @@ import random
 
 level_up_experience = 100
 
-#modifier = (stat - 10)/2
-
 #creates player data
 class Player:
     def __init__(self, class_name, level, experience, gold, health, dexterity, strength, armor, melee_skill, ranged_skill, intelligence, melee, ranged, special_attack, special_attack_available, class_action, class_action_available):
@@ -71,6 +69,13 @@ class Player:
         self.dexterity = self.max_dexterity
         self.strength = self.max_strength
 
+    def rest(self):
+        self.health += (self.max_health // 2)
+        if self.health > self.max_health:
+            self.health = self.max_health
+        self.special_attack_available = True
+        self.class_action_available = True
+
 
 class Item:
     def __init__(self, name, type, amount=1, healing=0, damage=0, damage_type='None', attack_type='Medium'):
@@ -87,7 +92,7 @@ class Item:
 
     def use_item(self, amount):
         self.amount -= amount
-        
+
 
 sword = Item('Sword', 'Melee', damage=6, damage_type='Slashing')
 bow = Item('Bow', 'Ranged', damage=8, damage_type='Piercing')
