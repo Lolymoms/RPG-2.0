@@ -18,7 +18,7 @@ class Enemy:
         self.special_attack_available = (special_attack != 'None')
 
     def stat_modifier(self, stat):
-        return (stat - 10)/2
+        return (stat - 10)//2
     
     def skill_modifier(self, skill):
         return skill - 2

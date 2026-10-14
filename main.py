@@ -6,11 +6,14 @@ import random
 row = 0
 #column is left to right
 column = 0
+#used mainly for the miniboss escape
+previous_direction = 0
 
 #gives all possible directions for a map of any size
 def movement(map, action):
     global row
     global column
+    global previous_direction
     
     possible_directions = []
     possible_directions_text = []
@@ -38,14 +41,26 @@ def movement(map, action):
         local_row += row_change
         local_column += column_change
 
+        #makes sure the player doesn't walk into the border of the map
         if local_row > max_direction or local_row < 0:
             pass
         elif local_column > max_direction or local_column < 0:
             pass
+        #makes sure the player doesn't walk into a map wall
         elif map[local_row][local_column] == 'Wall':
             pass
         else:
             possible_directions.append(direction)
+
+    #makes sure the player doesn't walk into the boss room
+    if action == 'Boss escape':
+        possible_directions.remove(3)
+        action = 'Move'
+    #makes sure the player walks into the boss room
+    elif action == 'Boss':
+        possible_directions.clear()
+        possible_directions.append(3)
+        action = 'Move'
 
     if action == 'Move':
         print(f"You see {len(possible_directions)} exits to this room.")
@@ -77,6 +92,13 @@ def movement(map, action):
                     print("Please pick a valid direction!")
     elif action == 'Run':
         player_direction = random.choice(possible_directions)
+    elif action == 'Miniboss':
+        if previous_direction == 3:
+            player_direction = 1
+        elif previous_direction == 4:
+            player_direction = 2
+
+    previous_direction = player_direction
 
     for direction, (row_change, column_change) in directions.items():
         if direction == player_direction:
@@ -85,7 +107,7 @@ def movement(map, action):
             return
 
 #creates a map room variable which shows the player a map of where they've been to, works for any sized map
-def map(dungeon_map, dungeon_visited):
+def player_map(dungeon_map, dungeon_visited):
     map_size = len(dungeon_map)
     #creates LOCAL rows and columns, used for later logic
     row_local = -1
@@ -185,11 +207,16 @@ def inventory():
 
     if inventory_selection == 'Leave':
         return
+    #for right now, consumables are only healing potions. This will be changed later
     elif inventory_selection == 'Use consumable':
         for item in player_data.player_inventory:
-            if item.type == 'Consumable':
+            if item.type == 'Consumable' and item.amount > 0:
                 print(f"Name: {item.name} - Amount: {item.amount} - Healing: {item.healing}")
                 consumables.append(item)
+            if len(consumables) == 0:
+                print("You have no consumables to use!")
+                input()
+                return
         while True:
             inventory_selection_2 = input("What would you like to use? ").capitalize()
             if inventory_selection_2 == 'Leave':
@@ -243,24 +270,38 @@ action = 0
 
 #selection between moving, map, and inventory
 while in_dungeon_1:
-    if action == 0:
+    if action == 0 or action == None:
         action = input("What would you like to do? (Move/Map/Inventory) ").capitalize()
     #if the player runs from a fight, makes them go a random direction
     elif action == 'Run':
         movement(dungeon_1.dungeon_map_1, action)
+    #if the player runs from the miniboss, makes them go to the room they were in before
+    elif action == 'Miniboss':
+        movement(dungeon_1.dungeon_map_1, action)
+        action = 0
+    #if the player escapes from the boss, lets them escape
+    elif action == 'Boss escape':
+        movement(dungeon_1.dungeon_map_1, action)
+    #if the player goes through the boss gates, removes their escape possibilities
+    elif action == 'Boss':
+        movement(dungeon_1.dungeon_map_1, action)
+    elif action == 'Staircase':
+        print("That is all for now. Thank you for playtesting!")
+        in_dungeon_1 = False
 
     if action == 'Move':
         movement(dungeon_1.dungeon_map_1, action)
     elif action == 'Map':
-        map(dungeon_1.dungeon_map_1, dungeon_1.dungeon_visited_1)
+        player_map(dungeon_1.dungeon_map_1, dungeon_1.dungeon_visited_1)
+        action = 0
     elif action == 'Inventory':
         inventory()
+        action = 0
     else:
         print("Please enter a valid option!")
 
     #if the player has taken an action in a room, skip it. Otherwise perform the action in the room
-    if action == 'Move' or action == 'Run':
-        action = 0
+    if action in ('Move', 'Run', 'Boss', 'Boss escape'):
         #if the player has never been to a room, trigger the action in the room
         if dungeon_1.dungeon_action_1[row][column] == False:
             dungeon_1.dungeon_visited_1[row][column] = True
@@ -270,3 +311,5 @@ while in_dungeon_1:
             if action == 'Move':
                 print("You've been here before! There's nothing more to do.")
                 print("")
+
+        action = 0

@@ -1,9 +1,12 @@
 import random
 import time
 import enemy_data
+import player_data
 
 #tracks if the player has pried open the gates to escape the bossfight
 boss_gate = True
+#gives the player a different piece of lore every time
+lore_counter = 1
 
 def enemy_room(player, row, column):
     print("You walk into the room and see something in the shadows...")
@@ -22,7 +25,7 @@ def enemy_room(player, row, column):
         action = encounter(player, enemy_data.cave_spider)
     # elif number <= 80:
     #     print("You walk further into the room and see a strange man")
-    #     print("not done for now, if you see this just ignore :3")
+    #     print("not done for now, if you see this just ignore pls :)")
     #     #do this later
     #     #insert wizard function here. There should be a way to talk your way out of this one
     # elif number <= 99:
@@ -42,6 +45,9 @@ def enemy_room(player, row, column):
 
     if action == 'Victory':
         dungeon_action_1[row][column] = True
+        return
+    elif action == 'Run':
+        return 'Run'
 
 def chest_room(player, row, column):
     print("You walk into a room with a chest in it.")
@@ -86,7 +92,21 @@ def chest_room(player, row, column):
         print("You decide to leave the chest.")
 
 def lore_room(player, row, column):
-    pass
+    global lore_counter
+    if lore_counter == 1:
+        print("You walk into the room and it seems mainly empty. In the corner you see a drawing etched into the stone.")
+        print("You recognize it as a man holding up a sword. The man also has a long flowing cape. Seems impractical for a dungeon.")
+        input()
+        print("The room seems empty otherwise, you decide to leave.")
+        lore_counter += 1
+        dungeon_action_1[row][column] = True
+    elif lore_counter == 2:
+        print("You walk into the room and see a large mural covering the wall. It depicts a man with a sword and cape fighting some creature.")
+        print("It looks like a golem, with spikes protruding from its head and arms. It towers over the man.")
+        print("There's an inscription. 'Horas confronts the Warden without fear.' You recognize the name Horas from somewhere...")
+        input()
+        print("You can't place it. There's nothing else in the room, and you decide to leave.")
+        dungeon_action_1[row][column] = True
 
 def rest_room(player, row, column):
     print("You walk into the room and see a small firepit on the floor. It seems to have been lit before.")
@@ -108,7 +128,7 @@ def miniboss_1(player, row, column):
     if action == 'Yes':
         dungeon_action_1[row][column] = True
         from enemy_data import Enemy
-        gelatinous_cube = Enemy("Gelatinous Cube", 2, 1, 35, 6, 2, 11, 4, 0, 'Slashing', 'None', True, 'Basic', True)
+        gelatinous_cube = Enemy("Gelatinous Cube", 2, 1, 35, 6, 2, 11, 4, 0, 'Slashing', 'None', True, 'Basic')
         encounter(player, gelatinous_cube)
     else:
         print("You decide to come back another time. You return to the room you came from.")
@@ -142,6 +162,8 @@ def vault_room(player, row, column):
                 print("You use all of your might to open the vault.")
                 input()
                 print("After almost a minute of struggling, the vault opens!")
+                print("+50 EXP!")
+                player.add_experience(50)
                 print("Inside you find 12 gold and a health potion.")
                 player.add_gold(12)
                 from player_data import healing_potion
@@ -160,6 +182,7 @@ def vault_room(player, row, column):
     input()
 
 def boss_entrance_1(player, row, column):
+    global boss_gate
     if player.level < 2:
         print("You approach a strange red doorway. A deep sense of dread fills you. You feel weak and unprepared for the challenge that lies ahead.")
         action = input("Are you sure you want to continue? (Yes/No) ").capitalize()
@@ -189,7 +212,32 @@ def boss_entrance_1(player, row, column):
                 print("You try to open the gates, but aren't strong enough.")
     print("You decide to face your fate. You feel ready.")
     return 'Boss'
-#finish this and check for bugs ^^^
+
+def boss_1(player, row, column):
+    print("You enter the room and sense an evil presence ahead. You see a small red liquid on the floor.")
+    action = input("Drink the red liquid? (Yes/No) ").capitalize()
+    if action == 'Yes':
+        print("You drink the red liquid. It tastes faintly like strawberry lemonade... It reminds you of home.")
+        print("You heal 50% max HP!")
+        player.heal((player.max_health // 2))
+        print(f"You have {player.health} health.")
+        input()
+    else:
+        print("You decide not to drink the potion.")
+
+    print("You prepare yourself, and continue...")
+    from enemy_data import Enemy
+    warden_boss = Enemy('Warden Boss', 2, 1, 35, 14, 2, 15, 5, boss=True, special_attack='Basic')
+    encounter(player, warden_boss)
+    return 'Boss'
+
+def staircase_1(player, row, column):
+    print("You see a staircase ahead of you. After all you've been through, you decide to descend.")
+    print(f"Congratulations {player.name}! You have sucessfully beaten the first layer of the great coil.")
+    print("Before continuing your adventures, a break.")
+    #makes the player level up
+    player.add_experience(player.level_up_experience_calculator())
+    return 'Staircase'
 
 #all code below this comment is for the encounter() function except for the three dungeon maps
 
@@ -231,17 +279,32 @@ def damage_calc(enemy, player, type):
         print(f"You deal {damage} damage!")
         input()
         return
+    elif type == 'Sneak attack':
+        print(f"You manage to sneak up on the {enemy.name} and do a sneak attack!")
+        damage = int(max(1, (random.randint(int(player.melee.damage * 0.7),int(player.melee.damage * 1.3))+ player.stat_modifier(player.strength) - enemy.armor)))
+        #if an enemy is vulnerable or resistant to a certain attack, deal double or half damage
+        if player.melee.damage_type == enemy.vulnerable:
+            damage *= 2
+            print("This attack does especially well!")
+        elif player.melee.damage_type == enemy.resistant:
+            damage //= 2
+            print("This attack seems less impactful.")
+        damage += player.melee.damage
+        enemy.take_damage(damage)
+        print(f"You deal {damage} damage!")
+        input()
+        return
     elif type == 'Enemy melee':
         damage = int(max(1, (random.randint(int(enemy.melee * 0.7),int(enemy.melee * 1.3))+ enemy.stat_modifier(enemy.strength) - player.armor)))
-        player.take_damage(damage)
         print(f"The {enemy.name} hits you with a melee attack for {damage} damage.")
+        player.take_damage(damage)
         print(f"You have {player.health} health left.")
         input()
         return
     elif type == 'Enemy ranged':
         damage = int(max(1, (random.randint(int(enemy.ranged * 0.7),int(enemy.ranged * 1.3))+ enemy.stat_modifier(enemy.dexterity) - player.armor)))
-        player.take_damage(damage)
         print(f"The {enemy.name} hits you with a ranged attack for {damage} damage.")
+        player.take_damage(damage)
         print(f"You have {player.health} health left.")
         input()
         return
@@ -311,8 +374,36 @@ def encounter(player, enemy):
     hunter_net = False
     ranger_class_action = False
     barb_rage = 0
-    player_options = ['Use item', 'Run', 'Attack', 'Dodge']
+    rounds = 0
+    player_options = ['Use consumable', 'Run', 'Attack', 'Dodge']
     attack_options = ['Melee', 'Ranged']
+
+    enemy_melee = (enemy.stat_modifier(enemy.strength) + (enemy.level // 2))
+    enemy_ranged = (enemy.stat_modifier(enemy.dexterity) + (enemy.level // 2))
+    enemy_AC = (10 + enemy.stat_modifier(enemy.dexterity))
+
+    player_melee = (player.stat_modifier(player.strength) + (player.level // 2))
+    player_ranged = (player.stat_modifier(player.dexterity) + (player.level // 2))
+    player_AC = (10 + player.stat_modifier(player.dexterity))
+
+    if player.class_name == 'Rogue' and player.melee.attack_type == 'Light':
+        attack_options.append('Sneak attack')
+        sneak_attack_text = '/Sneak attack'
+    else:
+        sneak_attack_text = ''
+
+    if player.melee_skill >= 5:
+        attack_turns = 2
+    else:
+        attack_turns = 1
+
+    if player.ranged_skill >= 5:
+        attack_turns = 2
+    else:
+        attack_turns = 1
+
+    if player.melee.attack_type == 'Light':
+        attack_turns += 1
 
     #if the player can use a class action, adds the respective text and option
     if player.class_action_available:
@@ -361,14 +452,45 @@ def encounter(player, enemy):
         if action == 'Run':
             if underleveled and ((player.stat_modifier(player.dexterity) + (enemy.level - player.level)) + random.randint(1,10)) > (enemy.stat_modifier(enemy.dexterity) + random.randint(1,10)):
                 print("You manage to escape. You run into a random room.")
+                player.rage_end()
                 return 'Run'
             elif (player.stat_modifier(player.dexterity) + random.randint(1,10)) > (enemy.stat_modifier(enemy.dexterity) + random.randint(1,10)):
                 print("You manage to escape. You run into a random room.")
+                player.rage_end()
                 return 'Run'
             else:
                 print(f"You don't manage to escape. The {enemy.name} prepares to attack...")
-        elif action == 'Use item':
-            print("This functionality will become available when the inventory becomes available. So not rn")
+        elif action == 'Use consumable':
+            acessing_consumables = True
+            consumables = []
+            for item in player_data.player_inventory:
+                if item.type == 'Consumable' and item.amount > 0:
+                    print(f"Name: {item.name} - Amount: {item.amount} - Healing: {item.healing}")
+                    consumables.append(item)
+            if len(consumables) == 0:
+                print("You have no consumables to use!")
+                input()
+                acessing_consumables = False
+                dodged = True
+
+            while acessing_consumables:
+                inventory_selection_2 = input("What would you like to use? ").capitalize()
+                if inventory_selection_2 == 'Leave':
+                    acessing_consumables = False
+                    dodged = True
+                else:
+                    for item in consumables:
+                        if item.name == inventory_selection_2:
+                            print(f"You use a {inventory_selection_2}.")
+                            player.heal(item.healing)
+                            item.use_item(1)
+                            print(f"You heal {item.healing} HP! You now have {player.health} HP.")
+                            acessing_consumables = False
+                            input()
+
+                    if acessing_consumables:
+                        print("Please enter a valid consumable! Type leave to leave.")
+
         elif action == 'Dodge':
             time_taken = reaction_time('Dodge')
             if time_taken < 40:
@@ -387,8 +509,9 @@ def encounter(player, enemy):
                     barb_rage = 3
                     input()
                 elif player.class_name == 'Ranger':
-                    print("You now have a multiattack! You can shoot 2 arrows at once.")
+                    print("You now have a multiattack! You can now shoot an extra arrow per turn.")
                     ranger_class_action = True
+                    attack_turns += 1
                     input()
                 elif player.class_name == 'Rogue':
                     print("You inspect your enemy to take advantage of it's vulnerabilities and spot its resistences.")
@@ -396,7 +519,7 @@ def encounter(player, enemy):
                     print(f"The {enemy.name} is resistant to {(enemy.resistant).lower()} attacks.")
                     input()
                     if player.level > 2:
-                        print("You also glean some more information about the enemy's statistics.")
+                        print("You can also glean some more information about the enemy's statistics.")
                         print(f"The enemy has a dexterity of {enemy.dexterity} and a strength of {enemy.strength}.")
                 elif player.class_name == 'Hunter':
                     print("You deploy a net on your enemy. Their dexterity is halved for one round.")
@@ -405,28 +528,29 @@ def encounter(player, enemy):
                     input()
         elif action == 'Attack':
             hunter_net = False
-            action = player_action(f"How do you want to attack? (Melee/Ranged{special_attack_text}) ", attack_options)
+            action = player_action(f"How do you want to attack? (Melee/Ranged{sneak_attack_text}{special_attack_text}) ", attack_options)
             if action == 'Melee':
-                if (random.randint(1,10) + player.stat_modifier(player.strength) + player.skill_modifier(player.melee_skill)) > (random.randint(1,10) + enemy.stat_modifier(enemy.dexterity)):
-                    damage_calc(enemy, player, 'Melee')
-                else:
-                    print("You miss.")
-                    input()
+                while rounds < attack_turns:
+                    rounds += 1
+                    if (random.randint(1,20) + player_melee) >= enemy_AC:
+                        damage_calc(enemy, player, 'Melee')
+                    else:
+                        print("You miss.")
+                        input()
+                rounds = 0
             elif action == 'Ranged':
-                if ranger_class_action:
-                    print("You use your multiattack!")
-                    ranger_class_action = False
-                    if (random.randint(1,10) + player.stat_modifier(player.dexterity) + player.skill_modifier(player.ranged_skill)) > (random.randint(1,10) + enemy.stat_modifier(enemy.dexterity)):
+                while rounds < attack_turns:
+                    rounds += 1
+                    if ranger_class_action:
+                        print("You use your multiattack!")
+                        ranger_class_action = False
+
+                    if (random.randint(1,20) + player_ranged) >= enemy_AC:
                         damage_calc(enemy, player, 'Ranged')
                     else:
                         print("You miss.")
                         input()
-
-                if (random.randint(1,10) + player.stat_modifier(player.dexterity) + player.skill_modifier(player.ranged_skill)) > (random.randint(1,10) + enemy.stat_modifier(enemy.dexterity)):
-                    damage_calc(enemy, player, 'Ranged')
-                else:
-                    print("You miss.")
-                    input()
+                rounds = 0
             elif action == 'Special attack':
                 time_taken = reaction_time('Special attack')
                 if time_taken <= 35:
@@ -447,18 +571,33 @@ def encounter(player, enemy):
                 player.special_attack_available = False
                 special_attack_text = ''
                 attack_options.remove('Special attack')
-
+            elif action == 'Sneak attack':
+                while rounds < attack_turns:
+                    rounds += 1
+                    if rounds == 0:
+                        if (random.randint(1,20) + player.stat_modifier(player.dexterity)) >= (enemy_AC + enemy.level):
+                            damage_calc(enemy, player, 'Sneak attack')
+                        else:
+                            print(f"You try to sneak up on the {enemy.name}, but fail!")
+                            input()
+                    else:
+                        if (random.randint(1,20) + player_melee) >= enemy_AC:
+                            damage_calc(enemy, player, 'Melee')
+                        else:
+                            print("You miss.")
+                            input()
+                rounds = 0
 
         if enemy.health > 0 and dodged == False:
             enemy_action = enemy_action_determiner(enemy, player)
             if enemy_action == 'Melee attack': 
-                if (random.randint(1,10) + enemy.stat_modifier(enemy.strength) + (enemy.level - 1)) > (random.randint(1,10) + player.stat_modifier(player.dexterity)):
+                if (random.randint(1,20) + enemy_melee) >= player_AC:
                     damage_calc(enemy, player, 'Enemy melee')
                 else:
                     print(f"The {enemy.name} misses its attack.")
                     input()
             elif enemy_action == 'Ranged attack':
-                if (random.randint(1,10) + enemy.stat_modifier(enemy.dexterity) + (enemy.level - 1)) > (random.randint(1,10) + player.stat_modifier(player.dexterity)):
+                if (random.randint(1,20) + enemy_ranged) >= player_AC:
                     damage_calc(enemy, player, 'Enemy ranged')
                 else:
                     print(f"The {enemy.name} misses its attack.")
@@ -493,14 +632,15 @@ def encounter(player, enemy):
             player.add_experience(experience)
             print(f"You have {player.experience} experience.")
             input()
+            player.rage_end()
             return 'Victory'
 
 
 dungeon_map_1 = [
     ['Entrance' , chest_room, vault_room, rest_room],
-    [enemy_room , 'Lore', chest_room, 'Boss entrance'],
-    [key_room , rest_room, 'Wall', 'Boss'],
-    ['Lore' , miniboss_1, 'Wall', 'Staircase']
+    [enemy_room , lore_room, chest_room, boss_entrance_1],
+    [key_room , rest_room, 'Wall', boss_1],
+    [lore_room , miniboss_1, 'Wall', staircase_1]
 ]
 
 dungeon_action_1 = [
