@@ -30,10 +30,11 @@ class Enemy:
 
     def half_dex(self):
         self.dexterity //= 2
+        return (10 + self.stat_modifier(self.dexterity))
 
     def restore_dex(self):
         self.dexterity = self.max_dexterity
+        return (10 + self.stat_modifier(self.dexterity))
 
-
-feral_dog = Enemy('Feral Dog', 1, 1, 15, 8, 1, 14, 5)
-cave_spider = Enemy('Cave Spider', 1, 1, 10, 17, 0, 14, 5)
+feral_dog = Enemy('Feral Dog', 1, 1, 20, 10, 1, 15, 6)
+cave_spider = Enemy('Cave Spider', 1, 1, 12, 17, 1, 14, 8)

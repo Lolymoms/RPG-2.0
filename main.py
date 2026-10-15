@@ -261,6 +261,56 @@ def inventory():
         else:
             return
 
+#intro text
+print("Hello adventurer! Welcome to this python text based RPG! Your goal is to descend a dungeon filled with enemies and puzzles to slay the monster at its heart.")
+print("This game is fairly complicated, and has many different systems which interact with each other.")
+tutorial = input("Would you like a tutorial? ").capitalize()
+if tutorial == 'Yes':
+    tutorial_sections = {
+        'General' : False,
+        'Combat' : False,
+        'Movement' : False,
+        'Inventory' : False,
+        'Classes' : False,
+    }
+    in_tutorial = True
+    while in_tutorial:
+        for section in tutorial_sections:
+            if tutorial_sections[section]:
+                print(section, '(Done!)')
+            else:
+                print(section)
+        tutorial = input("What would you like to learn about? ").capitalize()
+        if tutorial == 'Combat':
+            print("When adventuring through the dungeons of the great coil, you may find yourself fighting a variety of enemies.")
+            print("Every enemy has the following stats.")
+            print("Firstly enemies have vulnerabilities. Vulnerabilities are what the enemy is least prepared to protect against.")
+            print("Put simply, if you attack an enemy with the same attack type it's vulnerable against, it'll take double damage.")
+            print("On the other end of the spectrum, there are resistances. These are what the enemy is most prepared to protect against.")
+            print("If you attack an enemy with the same attack as it's resistant to, it'll take half damage.")
+            input()
+            print("Next up are special attacks. A special attacks are generally only available to bosses. If an enemy uses a special attack, it'll always hit.")
+            print("However, you can dodge it! If you press enter fast enough, the enemy's attack will be less effective against you.")
+            print("Finally are all the stats shared with the player! All enemies have strength, dexterity, armor, melee and ranged attacks, and last but not least health.")
+            print("To learn about these, read the classes tutorial.")
+            input()
+            print("You should also know that most optional bosses can be skipped before entering the fight.")
+            print("While you can't run from a boss, most miniboss rooms will warn you, so if you feel uneasy about something, make sure you're ready!")
+            print("Most minibosses will have a campfire nearby, where you can heal. This is where you regenerate your special attack!")
+            print("That's all there is to know about enemies. Good luck adventurer!")
+            input()
+            tutorial_sections['Combat'] = True
+        elif tutorial == 'Movement':
+            print("When you enter the dungeon, you are entering a grid of rooms arranged in a square.")
+            print("The first floor is 4 rooms by 4 rooms. This may seem scary, but fear not! You have a map available to you at all times.")
+            print("Here's what it looks like!")
+            player_map(dungeon_1.dungeon_map_1, dungeon_1.dungeon_visited_1)
+            print("When you move, either up, down, left, or right, you are moving as seen from a birdseye perspective.")
+            print("In between rooms, you have the ability to select between moving, opening your map, or acessing your inventory.")
+            print("That's all there is to know about movement!")
+            input()
+            tutorial_sections['Movement'] = True
+
 
 player = player_data.player_selection()
 

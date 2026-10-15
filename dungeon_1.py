@@ -2,6 +2,7 @@ import random
 import time
 import enemy_data
 import player_data
+import copy
 
 #tracks if the player has pried open the gates to escape the bossfight
 boss_gate = True
@@ -19,10 +20,10 @@ def enemy_room(player, row, column):
         #insert goblins function here
     elif number <= 40:
         print("You walk further into the room and see a feral dog!")
-        action = encounter(player, enemy_data.feral_dog)
+        action = encounter(player, copy.deepcopy(enemy_data.feral_dog))
     elif number <= 60:
         print("You walk further into the room and see a cave spider!")
-        action = encounter(player, enemy_data.cave_spider)
+        action = encounter(player, copy.deepcopy(enemy_data.cave_spider))
     # elif number <= 80:
     #     print("You walk further into the room and see a strange man")
     #     print("not done for now, if you see this just ignore pls :)")
@@ -371,7 +372,7 @@ def reaction_time(type):
 #use item
 def encounter(player, enemy):
     fighting = True
-    hunter_net = False
+    hunter_net = 0
     ranger_class_action = False
     barb_rage = 0
     rounds = 0
@@ -393,17 +394,17 @@ def encounter(player, enemy):
         sneak_attack_text = ''
 
     if player.melee_skill >= 5:
-        attack_turns = 2
+        melee_attack_turns = 2
     else:
-        attack_turns = 1
+        melee_attack_turns = 1
 
     if player.ranged_skill >= 5:
-        attack_turns = 2
+        ranged_attack_turns = 2
     else:
-        attack_turns = 1
+        melee_attack_turns = 1
 
     if player.melee.attack_type == 'Light':
-        attack_turns += 1
+        melee_attack_turns += 1
 
     #if the player can use a class action, adds the respective text and option
     if player.class_action_available:
@@ -440,8 +441,11 @@ def encounter(player, enemy):
         if barb_rage >= 1:
             print(f"You have {barb_rage} rounds of rage left.")
 
-        if hunter_net == False:
-            enemy.restore_dex()
+        if hunter_net >= 1:
+            print(f"You have {hunter_net} rounds of your net left.")
+
+        if hunter_net == 0:
+            enemy_AC = enemy.restore_dex()
 
         if barb_rage == 0:
             player.rage_end()
@@ -511,7 +515,7 @@ def encounter(player, enemy):
                 elif player.class_name == 'Ranger':
                     print("You now have a multiattack! You can now shoot an extra arrow per turn.")
                     ranger_class_action = True
-                    attack_turns += 1
+                    ranged_attack_turns += 1
                     input()
                 elif player.class_name == 'Rogue':
                     print("You inspect your enemy to take advantage of it's vulnerabilities and spot its resistences.")
@@ -522,15 +526,15 @@ def encounter(player, enemy):
                         print("You can also glean some more information about the enemy's statistics.")
                         print(f"The enemy has a dexterity of {enemy.dexterity} and a strength of {enemy.strength}.")
                 elif player.class_name == 'Hunter':
-                    print("You deploy a net on your enemy. Their dexterity is halved for one round.")
-                    enemy.half_dex()
-                    hunter_net = True
+                    print("You deploy a net on your enemy. Their dexterity is halved for two rounds.")
+                    enemy_AC = enemy.half_dex()
+                    hunter_net = 2
                     input()
         elif action == 'Attack':
-            hunter_net = False
+            hunter_net -=1
             action = player_action(f"How do you want to attack? (Melee/Ranged{sneak_attack_text}{special_attack_text}) ", attack_options)
             if action == 'Melee':
-                while rounds < attack_turns:
+                while rounds < melee_attack_turns:
                     rounds += 1
                     if (random.randint(1,20) + player_melee) >= enemy_AC:
                         damage_calc(enemy, player, 'Melee')
@@ -539,7 +543,7 @@ def encounter(player, enemy):
                         input()
                 rounds = 0
             elif action == 'Ranged':
-                while rounds < attack_turns:
+                while rounds < ranged_attack_turns:
                     rounds += 1
                     if ranger_class_action:
                         print("You use your multiattack!")
@@ -572,8 +576,7 @@ def encounter(player, enemy):
                 special_attack_text = ''
                 attack_options.remove('Special attack')
             elif action == 'Sneak attack':
-                while rounds < attack_turns:
-                    rounds += 1
+                while rounds < melee_attack_turns:
                     if rounds == 0:
                         if (random.randint(1,20) + player.stat_modifier(player.dexterity)) >= (enemy_AC + enemy.level):
                             damage_calc(enemy, player, 'Sneak attack')
@@ -586,6 +589,7 @@ def encounter(player, enemy):
                         else:
                             print("You miss.")
                             input()
+                    rounds += 1
                 rounds = 0
 
         if enemy.health > 0 and dodged == False:
