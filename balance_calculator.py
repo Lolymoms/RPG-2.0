@@ -40,7 +40,7 @@ import player_data
 # CONFIG  (edit these)
 # =====================================================================================
 
-SIMULATIONS = 4000          # fights simulated per class per level. More = smoother numbers, slower.
+SIMULATIONS = 5000          # fights simulated per class per level. More = smoother numbers, slower.
 SEED = None                 # set to a number (e.g. 1) to get repeatable results
 
 # ---- player progression ----
@@ -54,7 +54,7 @@ LEVEL_UP_PICKS = {
     'Barbarian': ['strength', 'melee_skill'],
     'Ranger':    ['dexterity', 'ranged_skill'],
     'Rogue':     ['dexterity', 'melee_skill'],
-    'Hunter':    ['dexterity', 'ranged_skill'],
+    'Hunter':    ['strength', 'ranged_skill'],
 }
 # max HP gained per level (copied from Player.add_experience)
 HP_PER_LEVEL = {'Barbarian': 12, 'Hunter': 10}
@@ -63,7 +63,7 @@ HP_PER_LEVEL_DEFAULT = 8
 # ---- player behaviour ----
 HEAL_BELOW_FRACTION = 0.35      # drink a potion at/under this fraction of max HP (or if the enemy's
                                 # next hit could kill you) - unless you expect to kill the enemy this turn
-BARBARIAN_RAGE = 'immediately'  # 'immediately' | 'smart' (only if it saves turns) | 'never'
+BARBARIAN_RAGE = 'smart'  # 'immediately' | 'smart' (only if it saves turns) | 'never'
 HUNTER_NET = 'smart'            # 'immediately' | 'smart' (only if it saves turns) | 'never'
 HUNTER_NET_ROUNDS = 2           # how many rounds of the Hunter's attacks the net affects
 
@@ -83,7 +83,7 @@ FAIR_BELOW = 95
 FAIR_HP_LOSS = 40
 
 CLASSES = ['Barbarian', 'Ranger', 'Rogue', 'Hunter']
-MAX_ROUNDS = 300  # safety valve so a stalemate can't loop forever (counts as a loss)
+MAX_ROUNDS = 30  # safety valve so a stalemate can't loop forever (counts as a loss)
 
 # =====================================================================================
 # helpers
