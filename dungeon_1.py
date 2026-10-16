@@ -129,7 +129,7 @@ def miniboss_1(player, row, column):
     if action == 'Yes':
         dungeon_action_1[row][column] = True
         from enemy_data import Enemy
-        gelatinous_cube = Enemy("Gelatinous Cube", 2, 1, 35, 6, 2, 11, 4, 0, 'Slashing', 'None', True, 'Basic')
+        gelatinous_cube = Enemy("Gelatinous Cube", 2, 1, 45, 6, 3, 11, 6, 0, 'Slashing', 'None', True, 'Basic')
         encounter(player, gelatinous_cube)
     else:
         print("You decide to come back another time. You return to the room you came from.")
@@ -254,7 +254,7 @@ def player_action(text, options):
 def damage_calc(enemy, player, type):
     if type == 'Melee':
         print(f"You hit the {enemy.name}.")
-        damage = int(max(1, (random.randint(int(player.melee.damage * 0.7),int(player.melee.damage * 1.3))+ player.stat_modifier(player.strength) - enemy.armor)))
+        damage = int(max(1, (random.randint(int(player.melee.damage * 0.7),int(player.melee.damage * 1.3)) + player.stat_modifier(player.strength) - enemy.armor)))
         #if an enemy is vulnerable or resistant to a certain attack, deal double or half damage
         if player.melee.damage_type == enemy.vulnerable:
             damage *= 2
@@ -268,7 +268,7 @@ def damage_calc(enemy, player, type):
         return
     elif type == 'Ranged':
         print(f"You hit the {enemy.name}.")
-        damage = int(max(1, (random.randint(int(player.ranged.damage * 0.7),int(player.ranged.damage * 1.3))+ player.stat_modifier(player.dexterity) - enemy.armor)))
+        damage = int(max(1, (random.randint(int(player.ranged.damage * 0.7),int(player.ranged.damage * 1.3)) + player.stat_modifier(player.dexterity) - enemy.armor)))
         #if an enemy is vulnerable or resistant to a certain attack, deal double or half damage
         if player.ranged.damage_type == enemy.vulnerable:
             damage *= 2
@@ -282,7 +282,7 @@ def damage_calc(enemy, player, type):
         return
     elif type == 'Sneak attack':
         print(f"You manage to sneak up on the {enemy.name} and do a sneak attack!")
-        damage = int(max(1, (random.randint(int(player.melee.damage * 0.7),int(player.melee.damage * 1.3))+ player.stat_modifier(player.strength) - enemy.armor)))
+        damage = int(max(1, (random.randint(int(player.melee.damage * 0.7),int(player.melee.damage * 1.3)) + player.stat_modifier(player.strength) - enemy.armor)))
         #if an enemy is vulnerable or resistant to a certain attack, deal double or half damage
         if player.melee.damage_type == enemy.vulnerable:
             damage *= 2
@@ -401,7 +401,7 @@ def encounter(player, enemy):
     if player.ranged_skill >= 5:
         ranged_attack_turns = 2
     else:
-        melee_attack_turns = 1
+        ranged_attack_turns = 1
 
     if player.melee.attack_type == 'Light':
         melee_attack_turns += 1

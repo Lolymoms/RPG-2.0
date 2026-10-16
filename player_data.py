@@ -155,7 +155,7 @@ class Item:
 
 
 sword = Item('Sword', 'Melee', damage=6, damage_type='Slashing')
-dagger = Item('Dagger', 'Melee', damage=3, damage_type='Slashing', attack_type='Light')
+dagger = Item('Dagger', 'Melee', damage=4, damage_type='Slashing', attack_type='Light')
 bow = Item('Bow', 'Ranged', damage=8, damage_type='Piercing')
 arrows = Item('Arrows', 'Usable', 20)
 healing_potion = Item('Healing potion', 'Consumable', 0, healing=random.randint(4,8))
