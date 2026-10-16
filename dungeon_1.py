@@ -12,37 +12,19 @@ lore_counter = 1
 def enemy_room(player, row, column):
     print("You walk into the room and see something in the shadows...")
     input()
-    number = random.randint(1, (40 + (player.level * 10)))
+    number = random.randint(1, 60)
 
-    if number == 2000: #impossible for right now since it's a group
-        print("You walk further into the room and see a group of goblins!")
-        action = encounter(player) #insert goblins here
-        #insert goblins function here
-    elif number <= 40:
+    # #impossible for right now since it's a group
+    # if number <= 20: 
+    #     print("You walk further into the room and see a group of goblins!")
+    #     action = encounter(player) #insert goblins here
+    #     #insert goblins function here
+    if number <= 40:
         print("You walk further into the room and see a feral dog!")
         action = encounter(player, copy.deepcopy(enemy_data.feral_dog))
-    elif number <= 60:
+    else:
         print("You walk further into the room and see a cave spider!")
         action = encounter(player, copy.deepcopy(enemy_data.cave_spider))
-    # elif number <= 80:
-    #     print("You walk further into the room and see a strange man")
-    #     print("not done for now, if you see this just ignore pls :)")
-    #     #do this later
-    #     #insert wizard function here. There should be a way to talk your way out of this one
-    # elif number <= 99:
-    #     print("You walk further into the room and see a giant snake!")
-    #     print("You cannot determine if it's a python...")
-    #     returning = encounter('Small Python', 25, 15, 6, 5, 3, 3)
-    #     #insert small_python function here
-    # elif number > 99:
-    #     print("You have a bad feeling about this one...")
-    #     input("")
-    #     print("You walk further into the room and see an orc")
-    #     print("Unlucky for you, it's a full sized orc!")
-    #     returning = encounter ('Orc', 40, 20, 0, 6, 3, 5)
-    #     #insert orc function here
-    else:
-        print("Something broke")
 
     if action == 'Victory':
         dungeon_action_1[row][column] = True
@@ -129,7 +111,7 @@ def miniboss_1(player, row, column):
     if action == 'Yes':
         dungeon_action_1[row][column] = True
         from enemy_data import Enemy
-        gelatinous_cube = Enemy("Gelatinous Cube", 2, 1, 45, 6, 3, 11, 6, 0, 'Slashing', 'None', True, 'Basic')
+        gelatinous_cube = Enemy("Gelatinous Cube", 1, 1, 40, 6, 3, 11, 6, 0, 'Slashing', 'None', True, 'Basic')
         encounter(player, gelatinous_cube)
     else:
         print("You decide to come back another time. You return to the room you came from.")
@@ -290,7 +272,7 @@ def damage_calc(enemy, player, type):
         elif player.melee.damage_type == enemy.resistant:
             damage //= 2
             print("This attack seems less impactful.")
-        damage += player.melee.damage
+        damage *= 2
         enemy.take_damage(damage)
         print(f"You deal {damage} damage!")
         input()
@@ -376,6 +358,7 @@ def encounter(player, enemy):
     ranger_class_action = False
     barb_rage = 0
     rounds = 0
+    turn_counter = 0
     player_options = ['Use consumable', 'Run', 'Attack', 'Dodge']
     attack_options = ['Melee', 'Ranged']
 
@@ -449,15 +432,21 @@ def encounter(player, enemy):
 
         if barb_rage == 0:
             player.rage_end()
+            player_melee = (player.stat_modifier(player.strength) + (player.level // 2))
+            player_ranged = (player.stat_modifier(player.dexterity) + (player.level // 2))
+            player_AC = (10 + player.stat_modifier(player.dexterity))
 
         dodged = False
         print(f"The {enemy.name} has {enemy.health} health left.")
         action = player_action(f"It is your turn. What do you do? (Attack/Dodge/Use consumable{class_action_text}{run_text}) ", player_options)
         if action == 'Run':
-            if underleveled and ((player.stat_modifier(player.dexterity) + (enemy.level - player.level)) + random.randint(1,10)) > (enemy.stat_modifier(enemy.dexterity) + random.randint(1,10)):
-                print("You manage to escape. You run into a random room.")
-                player.rage_end()
-                return 'Run'
+            if underleveled:
+                if ((player.stat_modifier(player.dexterity) + (enemy.level - player.level)) + random.randint(1,10)) > (enemy.stat_modifier(enemy.dexterity) + random.randint(1,10)):
+                    print("You manage to escape. You run into a random room.")
+                    player.rage_end()
+                    return 'Run'
+                else:
+                    print(f"You don't manage to escape. The {enemy.name} prepares to attack...")
             elif (player.stat_modifier(player.dexterity) + random.randint(1,10)) > (enemy.stat_modifier(enemy.dexterity) + random.randint(1,10)):
                 print("You manage to escape. You run into a random room.")
                 player.rage_end()
@@ -486,9 +475,10 @@ def encounter(player, enemy):
                     for item in consumables:
                         if item.name == inventory_selection_2:
                             print(f"You use a {inventory_selection_2}.")
-                            player.heal(item.healing)
+                            healing = item.amount_healing()
+                            player.heal(healing)
                             item.use_item(1)
-                            print(f"You heal {item.healing} HP! You now have {player.health} HP.")
+                            print(f"You heal {healing} HP! You now have {player.health} HP.")
                             acessing_consumables = False
                             input()
 
@@ -510,12 +500,14 @@ def encounter(player, enemy):
                 if player.class_name == 'Barbarian':
                     print(f"You are enraged! Your strength increases, but your dexterity decreases for 2 turns.")
                     player.rage()
+                    player_melee = (player.stat_modifier(player.strength) + (player.level // 2))
+                    player_ranged = (player.stat_modifier(player.dexterity) + (player.level // 2))
+                    player_AC = (10 + player.stat_modifier(player.dexterity))
                     barb_rage = 3
                     input()
                 elif player.class_name == 'Ranger':
                     print("You now have a multiattack! You can now shoot an extra arrow per turn.")
                     ranger_class_action = True
-                    ranged_attack_turns += 1
                     input()
                 elif player.class_name == 'Rogue':
                     print("You inspect your enemy to take advantage of it's vulnerabilities and spot its resistences.")
@@ -548,6 +540,12 @@ def encounter(player, enemy):
                     if ranger_class_action:
                         print("You use your multiattack!")
                         ranger_class_action = False
+                        
+                        if (random.randint(1,20) + player_ranged) >= enemy_AC:
+                            damage_calc(enemy, player, 'Ranged')
+                        else:
+                            print("You miss.")
+                            input()
 
                     if (random.randint(1,20) + player_ranged) >= enemy_AC:
                         damage_calc(enemy, player, 'Ranged')
@@ -638,6 +636,10 @@ def encounter(player, enemy):
             input()
             player.rage_end()
             return 'Victory'
+
+        if 'Sneak attack' in attack_options:
+            attack_options.remove('Sneak attack')
+            sneak_attack_text = ''
 
 
 dungeon_map_1 = [

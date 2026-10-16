@@ -136,21 +136,23 @@ def player_map(dungeon_map, dungeon_visited):
         for subroom in room:
             #checks every room in dungeon_1_visited, and if you've been there adds the corresponding symbol
             if dungeon_visited[row_local][column_local] == True:
-                #most of these functions don't exist, so they're commented out for now
-                # if dungeon_map[row_local][column_local] == enemy_room:
-                #     map_room_list[row_local][column_local] = 'x'
-                # elif dungeon_map[row_local][column_local] == empty_room:
-                #     map_room_list[row_local][column_local] = ' '
-                # elif dungeon_map[row_local][column_local] == gold_room:
-                #     map_room_list[row_local][column_local] = '$'
-                # elif dungeon_map[row_local][column_local] == 'Entrance':
-                #     map_room_list[row_local][column_local] = ' '
-                # elif dungeon_map[row_local][column_local] == miniboss:
-                #     map_room_list[row_local][column_local] = 'X'
-                # elif dungeon_map[row_local][column_local] == rest_room:
-                #     map_room_list[row_local][column_local] = '*'
-                #else:
-                map_room_list[row_local][column_local] = ' '
+                if dungeon_map[row_local][column_local] == dungeon_1.enemy_room:
+                     map_room_list[row_local][column_local] = 'x'
+                elif dungeon_map[row_local][column_local] == dungeon_1.lore_room:
+                     map_room_list[row_local][column_local] = '"'
+                elif dungeon_map[row_local][column_local] == dungeon_1.chest_room:
+                     map_room_list[row_local][column_local] = '$'
+                elif dungeon_map[row_local][column_local] == 'Entrance':
+                     map_room_list[row_local][column_local] = ' '
+                elif dungeon_map[row_local][column_local] == dungeon_1.miniboss_1:
+                     map_room_list[row_local][column_local] = 'X'
+                elif dungeon_map[row_local][column_local] == dungeon_1.rest_room:
+                     map_room_list[row_local][column_local] = '*'
+                else:
+                    map_room_list[row_local][column_local] = ' '
+
+            if dungeon_map[row_local][column_local] == 'Wall':
+                map_room_list[row_local][column_local] = '#'
             if row == row_local and column == column_local:
                 map_room_list[row_local][column_local] = '@'
             column_local += 1
@@ -213,10 +215,12 @@ def inventory():
             if item.type == 'Consumable' and item.amount > 0:
                 print(f"Name: {item.name} - Amount: {item.amount} - Healing: {item.healing}")
                 consumables.append(item)
-            if len(consumables) == 0:
-                print("You have no consumables to use!")
-                input()
-                return
+
+        if len(consumables) == 0:
+            print("You have no consumables to use!")
+            input()
+            return
+        
         while True:
             inventory_selection_2 = input("What would you like to use? ").capitalize()
             if inventory_selection_2 == 'Leave':
@@ -225,9 +229,10 @@ def inventory():
                 for item in consumables:
                     if item.name == inventory_selection_2:
                         print(f"You use a {inventory_selection_2}.")
-                        player.heal(item.healing)
+                        healing = item.amount_healing()
+                        player.heal(healing)
                         item.use_item(1)
-                        print(f"You heal {item.healing} HP! You now have {player.health} HP.")
+                        print(f"You heal {healing} HP! You now have {player.health} HP.")
                         return
 
                 print("Please enter a valid consumable! Type leave to leave.")
@@ -390,7 +395,7 @@ if tutorial == 'Yes':
             print("You also start with a dagger, though, which can do two lower damage attacks per turn.")
             print("The rogue has a class action which allows it to see enemy vulnerabilities and resistances.")
             print("It also has a passive ability! The rogue can sneak up on an enemy and perform a sneak attack if they can remain undetected and are using a light weapon.")
-            print("This ability can be used as many times as you want, without needing to recharge!")
+            print("This ability can be used as many times as you want, without needing to recharge! It can only be the first attack for every encounter however.")
             print("If you want to hide in the shadows and sneak up on your enemies to attack, the rogue is for you.")
             input()
             print("Last but not least is the hunter.")
@@ -411,36 +416,52 @@ if tutorial == 'Yes':
             print("Please pick a valid tutorial section!")
             print("(Type leave to leave)")
             input()
+elif tutorial == 'Dev':
+    print("Welcome dev!")
+    player = player_data.player_selection('dev')
+    row = int(input("Please input row (up and down) "))
+    column = int(input("Please input column (left and right) "))
 
+if tutorial != 'Dev':
+    player = player_data.player_selection(None)
 
-player = player_data.player_selection()
-
-#creates two variables required for the while loop
+#creates three variables required for the while loop
 in_dungeon_1 = True
 action = 0
+room_action = None
 
 #selection between moving, map, and inventory
 while in_dungeon_1:
-    if action == 0 or action == None:
+    if room_action == None:
         action = input("What would you like to do? (Move/Map/Inventory) ").capitalize()
     #if the player runs from a fight, makes them go a random direction
-    elif action == 'Run':
-        movement(dungeon_1.dungeon_map_1, action)
+    elif room_action == 'Run':
+        movement(dungeon_1.dungeon_map_1, room_action)
+        action = 'Move'
+        room_action = 'Move'
     #if the player runs from the miniboss, makes them go to the room they were in before
-    elif action == 'Miniboss':
-        movement(dungeon_1.dungeon_map_1, action)
-        action = 0
+    elif room_action == 'Miniboss':
+        movement(dungeon_1.dungeon_map_1, room_action)
+        action = 'Move'
+        room_action = 'Move'
     #if the player escapes from the boss, lets them escape
-    elif action == 'Boss escape':
-        movement(dungeon_1.dungeon_map_1, action)
+    elif room_action == 'Boss escape':
+        movement(dungeon_1.dungeon_map_1, room_action)
+        action = 'Move'
+        room_action = 'Move'
     #if the player goes through the boss gates, removes their escape possibilities
-    elif action == 'Boss':
-        movement(dungeon_1.dungeon_map_1, action)
-    elif action == 'Staircase':
+    elif room_action == 'Boss':
+        movement(dungeon_1.dungeon_map_1, room_action)
+        action = 'Move'
+        room_action = 'Move'
+    elif room_action == 'Staircase':
         print("That is all for now. Thank you for playtesting!")
         in_dungeon_1 = False
+        break
 
-    if action == 'Move':
+    if room_action == 'Move':
+        room_action = None
+    elif action == 'Move':
         movement(dungeon_1.dungeon_map_1, action)
     elif action == 'Map':
         player_map(dungeon_1.dungeon_map_1, dungeon_1.dungeon_visited_1)
@@ -450,17 +471,16 @@ while in_dungeon_1:
         action = 0
     else:
         print("Please enter a valid option!")
+        action = 0
 
     #if the player has taken an action in a room, skip it. Otherwise perform the action in the room
-    if action in ('Move', 'Run', 'Boss', 'Boss escape'):
+    if action == 'Move':
         #if the player has never been to a room, trigger the action in the room
         if dungeon_1.dungeon_action_1[row][column] == False:
             dungeon_1.dungeon_visited_1[row][column] = True
-            action = dungeon_1.dungeon_map_1[row][column](player, row, column)
+            room_action = dungeon_1.dungeon_map_1[row][column](player, row, column)
         #if the player has been to a room, don't trigger anything
         elif dungeon_1.dungeon_action_1[row][column] == True:
             if action == 'Move':
                 print("You've been here before! There's nothing more to do.")
                 print("")
-
-        action = 0

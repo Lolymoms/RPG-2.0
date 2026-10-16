@@ -153,6 +153,9 @@ class Item:
     def use_item(self, amount):
         self.amount -= amount
 
+    def amount_healing(self):
+        return random.randint(1, self.healing)
+
 
 sword = Item('Sword', 'Melee', damage=6, damage_type='Slashing')
 dagger = Item('Dagger', 'Melee', damage=4, damage_type='Slashing', attack_type='Light')
@@ -162,16 +165,20 @@ healing_potion = Item('Healing potion', 'Consumable', 0, healing=random.randint(
 
 player_inventory = [sword, bow, arrows, healing_potion]
 
-def player_selection():
-    name = input("What would you like to be called adventurer? ")
-    print(f"Welcome {name}! It's time to choose your class! Here are the options.")
-    print("Barbarian. A strong, tanky, and melee based class. If you want to smash stuff, you're a barbarian.")
-    input()
-    print("Ranger. A quick, smart, and ranged based class. If you want to dodge attacks and shoot from afar, you're a ranger.")
-    input()
-    print("Rogue. A sneaky, quiet, and ambush based class. If you want to sneak up to an enemy to kill it, you're a rogue.")
-    input()
-    print("Hunter. Last but not least, the hunter. A jack of all trades, but master of none. If you don't know what to pick, you're a hunter.")
+def player_selection(dev):
+    if dev != 'dev':
+        name = input("What would you like to be called adventurer? ")
+        print(f"Welcome {name}! It's time to choose your class! Here are the options.")
+        print("Barbarian. A strong, tanky, and melee based class. If you want to smash stuff, you're a barbarian.")
+        input()
+        print("Ranger. A quick, smart, and ranged based class. If you want to dodge attacks and shoot from afar, you're a ranger.")
+        input()
+        print("Rogue. A sneaky, quiet, and ambush based class. If you want to sneak up to an enemy to kill it, you're a rogue.")
+        input()
+        print("Hunter. Last but not least, the hunter. A jack of all trades, but master of none. If you don't know what to pick, you're a hunter.")
+    else:
+        name = 'dev'
+        
     while True:
         class_selection = input("What would you like to be? ").capitalize()
         if class_selection == 'Barbarian':
