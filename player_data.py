@@ -21,6 +21,8 @@ class Player:
         self.melee_skill = melee_skill
         self.ranged_skill = ranged_skill
         self.intelligence = intelligence
+        self.mana = (intelligence * 2)
+        self.max_mana = self.mana
         self.melee = melee
         self.ranged = ranged
         self.special_attack = special_attack
@@ -53,6 +55,9 @@ class Player:
 
     def add_gold(self, gold):
         self.gold += gold
+
+    def add_armor(self, armor_adding):
+        self.armor += armor_adding
 
     def level_up_experience_calculator(self):
         return (level_up_experience - self.experience)
@@ -165,6 +170,28 @@ healing_potion = Item('Healing potion', 'Consumable', 0, healing=random.randint(
 
 player_inventory = [sword, bow, arrows, healing_potion]
 
+class Spell:
+    def __init__(self, name, mana_cost, spell_description, spell_type, damage=0, damage_type='None', healing=0):
+        self.name = name
+        self.mana_cost = mana_cost
+        self.spell_description = spell_description
+        self.spell_type = spell_type
+        self.damage = damage
+        self.damage_type = damage_type
+        self.healing = healing
+
+    def cast_spell(self, player, enemy):
+        if self.mana_cost <= player.mana:
+            player.mana -= self.mana_cost
+            print(f"You cast {self.name}! You have {player.mana} left.")
+            if self.spell_type == 'Healing':
+                player.heal(self.healing)
+            elif self.spell_type == 'Damage':
+                return 'Spell cast'
+        else:
+            print("Not enough mana!")
+            return 'Spell failed'
+
 def player_selection(dev):
     if dev != 'dev':
         name = input("What would you like to be called adventurer? ")
@@ -183,7 +210,7 @@ def player_selection(dev):
         class_selection = input("What would you like to be? ").capitalize()
         if class_selection == 'Barbarian':
             print("You are now a Barbarian!")
-            return Player('Barbarian', name, 1, 0, 0, 24, 7, 15, 2, 1, 0, 6, sword, bow, 'Basic', True, 'Basic', True)
+            return Player('Barbarian', name, 1, 0, 0, 24, 7, 14, 2, 1, 0, 6, sword, bow, 'Basic', True, 'Basic', True)
         elif class_selection == 'Ranger':
             print("You are now a Ranger!")
             return Player('Ranger', name, 1, 0, 0, 18, 15, 8, 1, 0, 2, 12, sword, bow, 'Basic', True, 'Basic', True)

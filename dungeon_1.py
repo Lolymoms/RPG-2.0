@@ -8,6 +8,8 @@ import copy
 boss_gate = True
 #gives the player a different piece of lore every time
 lore_counter = 1
+#tracks how many times a player has been in a chest room
+chest_counter = 1
 
 def enemy_room(player, row, column):
     print("You walk into the room and see something in the shadows...")
@@ -33,6 +35,7 @@ def enemy_room(player, row, column):
         return 'Run'
 
 def chest_room(player, row, column):
+    global chest_counter
     print("You walk into a room with a chest in it.")
     action = input("What do you want to do? (Open/Leave) ").capitalize()
 
@@ -41,34 +44,40 @@ def chest_room(player, row, column):
         #generates a random number to determine reward/mimic
         randomnum = random.randint(1,10)
         #if the random number is 4 or below, it's 5 gold
-        if randomnum < 5:
-            print("You open the chest and find some gold!")
-            print("+5 gold")
-            player.add_gold(5)
-            print(f"You have {player.gold} gold.")
+        if chest_counter == 1:
+            print("You open the chest and find a health potion!")
+            player_data.healing_potion.add_item(1)
+            print(f"You have {player_data.healing_potion.amount} health potions.")
             input()
-        #if the random number is 5-9, it's a mimic
-        elif randomnum >= 5 and randomnum < 10:
-            print("You open the chest and are attacked by a mimic!")
-            damage = max(0, (4 - player.armor))
-            print(f"You lose {damage} HP.")
-            player.take_damage(damage)
-            print(f"You have {player.health} health left.")
-            input()
-        #if the random number is 10, there's a suit of armor
-        elif randomnum == 10:
-            print("You find an old suit of armor!")
-            print("The armor will give you 3 armor")
-            print(f"You have {player.armor}")
-            take_or_leave = input("Take it or leave it? (Take/Leave) ").capitalize()
-            #logic for taking or leaving the armor
-            if take_or_leave == 'Take':
-                print("You took the old armor")
-                player.armor = 3
-            else:
-                print("You decide not to take the old armor")
-        #if the player dies, kills them
-
+            chest_counter += 1
+        else:
+            if randomnum < 7:
+                print("You open the chest and find some gold!")
+                print("+5 gold")
+                player.add_gold(5)
+                print(f"You have {player.gold} gold.")
+                input()
+            #if the random number is 5-9, it's a mimic
+            elif randomnum >= 7 and randomnum < 9:
+                print("You open the chest and are attacked by a mimic!")
+                damage = max(0, (4 - player.armor))
+                print(f"You lose {damage} HP.")
+                player.take_damage(damage)
+                print(f"You have {player.health} health left.")
+                input()
+            #if the random number is 10, there's a suit of armor
+            elif randomnum == 10:
+                print("You find an old suit of armor!")
+                print("The armor will give you +1 armor")
+                print(f"You have {player.armor}")
+                take_or_leave = input("Take it or leave it? (Take/Leave) ").capitalize()
+                #logic for taking or leaving the armor
+                if take_or_leave == 'Take':
+                    print("You took the old armor")
+                    player.add_armor(1)
+                else:
+                    print("You decide not to take the old armor")
+                    
         print("There seems to be nothing else in the room.")
         input()
     else:
