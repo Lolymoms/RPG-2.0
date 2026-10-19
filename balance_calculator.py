@@ -187,7 +187,7 @@ def build_fighter(class_name, level):
         return ''
 
     with mock.patch('builtins.input', fake_input), contextlib.redirect_stdout(io.StringIO()):
-        p = player_data.player_selection()
+        p = player_data.player_selection('dev')
 
     for _ in range(level - 1):
         for stat in LEVEL_UP_PICKS[class_name]:
