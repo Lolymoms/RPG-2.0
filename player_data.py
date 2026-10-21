@@ -23,6 +23,7 @@ class Player:
         self.intelligence = intelligence
         self.mana = (intelligence * 2)
         self.max_mana = self.mana
+        self.known_spells = []
         self.melee = melee
         self.ranged = ranged
         self.special_attack = special_attack
@@ -159,14 +160,14 @@ class Item:
         self.amount -= amount
 
     def amount_healing(self):
-        return random.randint(1, self.healing)
+        return random.randint(self.healing[0], self.healing[1])
 
 
 sword = Item('Sword', 'Melee', damage=6, damage_type='Slashing')
 dagger = Item('Dagger', 'Melee', damage=4, damage_type='Slashing', attack_type='Light')
 bow = Item('Bow', 'Ranged', damage=8, damage_type='Piercing')
 arrows = Item('Arrows', 'Usable', 20)
-healing_potion = Item('Healing potion', 'Consumable', 0, healing=random.randint(4,8))
+healing_potion = Item('Healing potion', 'Consumable', 0, healing=(4,8))
 
 player_inventory = [sword, bow, arrows, healing_potion]
 
@@ -180,17 +181,37 @@ class Spell:
         self.damage_type = damage_type
         self.healing = healing
 
-    def cast_spell(self, player, enemy):
+    def cast_spell(self, player):
         if self.mana_cost <= player.mana:
             player.mana -= self.mana_cost
             print(f"You cast {self.name}! You have {player.mana} left.")
             if self.spell_type == 'Healing':
-                player.heal(self.healing)
+                heal_amount = random.randint(self.healing[0], self.healing[1])
+                player.heal(heal_amount)
+                print(f"You heal {heal_amount} HP.")
+                return 'Healing'
             elif self.spell_type == 'Damage':
                 return 'Spell cast'
         else:
             print("Not enough mana!")
             return 'Spell failed'
+
+
+minor_healing_spell = Spell('Minor Healing', 2, 'Heals 4-8 HP', 'Healing', healing=(4,8))
+firebolt = Spell('Firebolt', 4, 'Shoots a small ball of fire towards your enemy', 'Offensive', 6, 'Fire')
+freeze = Spell('Freeze', 6, 'Freezes your enemy for 2 turns', 'Support', 2, 'Cold')
+poison = Spell('Poison', 5, 'Creates a cloud of poisonous gas that damages enemies', 'Offensive', 12, 'Poison')
+tornado = Spell('Tornado', 4, 'Creates a whirlpool which pulls in enemies', 'Support', 2, 'Force')
+shield = Spell('Shield', 3, 'Creates a magical shield which protects you from enemy attacks', 'Support')
+searing_smite = Spell('Searing smite', 3, 'Enchants your melee weapon, increasing its damage for 2 turns', 'Support')
+
+spellbook = {
+    'Barbarian' : [searing_smite],
+    'Ranger' : [shield, tornado],
+    'Rogue' : [freeze, searing_smite],
+    'Hunter' : [freeze, poison],
+    'Mage' : [minor_healing_spell, firebolt, freeze, shield] 
+}
 
 def player_selection(dev):
     if dev != 'dev':

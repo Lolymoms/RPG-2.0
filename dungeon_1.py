@@ -77,7 +77,7 @@ def chest_room(player, row, column):
                     player.add_armor(1)
                 else:
                     print("You decide not to take the old armor")
-                    
+
         print("There seems to be nothing else in the room.")
         input()
     else:
@@ -281,7 +281,7 @@ def damage_calc(enemy, player, type):
         elif player.melee.damage_type == enemy.resistant:
             damage //= 2
             print("This attack seems less impactful.")
-        damage *= 2
+        damage *= 3
         enemy.take_damage(damage)
         print(f"You deal {damage} damage!")
         input()
@@ -344,6 +344,31 @@ def reaction_time(type):
         total = 100
     return total
 
+def class_action(player, enemy):
+    if player.class_action == 'Basic':
+        if player.class_name == 'Barbarian':
+            print(f"You are enraged! Your strength increases, but your dexterity decreases for 2 turns.")
+            player.rage()
+            input()
+            return 'Barb'
+        elif player.class_name == 'Ranger':
+            print("You now have a multiattack! You can now shoot an extra arrow per turn.")
+            input()
+            return 'Ranger'
+        elif player.class_name == 'Rogue':
+            print("You inspect your enemy to take advantage of it's vulnerabilities and spot its resistences.")
+            print(f"The {enemy.name} is vulnerable to {(enemy.vulnerable).lower()} attacks.")
+            print(f"The {enemy.name} is resistant to {(enemy.resistant).lower()} attacks.")
+            input()
+            if player.level > 2:
+                print("You can also glean some more information about the enemy's statistics.")
+                print(f"The enemy has a dexterity of {enemy.dexterity} and a strength of {enemy.strength}.")
+            return 'Rogue'
+        elif player.class_name == 'Hunter':
+            print("You deploy a net on your enemy. Their dexterity is halved for two rounds.")
+            input()
+            return 'Hunter'
+
 ##damage
 #hitting melee - (d10 * weapon proficciency) + strength compared to enemy d10 + dex
 #hitting ranged - (d10 * weapon proficciency) + dex compared to enemy d10 + dex
@@ -369,7 +394,7 @@ def encounter(player, enemy):
     rounds = 0
     turn_counter = 0
     player_options = ['Use consumable', 'Run', 'Attack', 'Dodge']
-    attack_options = ['Melee', 'Ranged']
+    attack_options = ['Melee', 'Ranged', 'Cast spell']
 
     enemy_melee = (enemy.stat_modifier(enemy.strength) + (enemy.level // 2))
     enemy_ranged = (enemy.stat_modifier(enemy.dexterity) + (enemy.level // 2))
@@ -437,7 +462,8 @@ def encounter(player, enemy):
             print(f"You have {hunter_net} rounds of your net left.")
 
         if hunter_net == 0:
-            enemy_AC = enemy.restore_dex()
+            enemy.restore_dex()
+            enemy_AC = (10 + enemy.stat_modifier(enemy.dexterity))
 
         if barb_rage == 0:
             player.rage_end()
@@ -505,35 +531,21 @@ def encounter(player, enemy):
             class_action_text = ''
             player.class_action_available = False
             player_options.remove('Class action')
-            if player.class_action == 'Basic':
-                if player.class_name == 'Barbarian':
-                    print(f"You are enraged! Your strength increases, but your dexterity decreases for 2 turns.")
-                    player.rage()
-                    player_melee = (player.stat_modifier(player.strength) + (player.level // 2))
-                    player_ranged = (player.stat_modifier(player.dexterity) + (player.level // 2))
-                    player_AC = (10 + player.stat_modifier(player.dexterity))
-                    barb_rage = 3
-                    input()
-                elif player.class_name == 'Ranger':
-                    print("You now have a multiattack! You can now shoot an extra arrow per turn.")
-                    ranger_class_action = True
-                    input()
-                elif player.class_name == 'Rogue':
-                    print("You inspect your enemy to take advantage of it's vulnerabilities and spot its resistences.")
-                    print(f"The {enemy.name} is vulnerable to {(enemy.vulnerable).lower()} attacks.")
-                    print(f"The {enemy.name} is resistant to {(enemy.resistant).lower()} attacks.")
-                    input()
-                    if player.level > 2:
-                        print("You can also glean some more information about the enemy's statistics.")
-                        print(f"The enemy has a dexterity of {enemy.dexterity} and a strength of {enemy.strength}.")
-                elif player.class_name == 'Hunter':
-                    print("You deploy a net on your enemy. Their dexterity is halved for two rounds.")
-                    enemy_AC = enemy.half_dex()
-                    hunter_net = 2
-                    input()
+            class_action_selection = class_action(player, enemy)
+            if class_action_selection == 'Barb':
+                player_melee = (player.stat_modifier(player.strength) + (player.level // 2))
+                player_ranged = (player.stat_modifier(player.dexterity) + (player.level // 2))
+                player_AC = (10 + player.stat_modifier(player.dexterity))
+                barb_rage = 3
+            elif class_action_selection == 'Ranger':
+                ranger_class_action = True
+            elif class_action_selection == 'Hunter':
+                enemy.half_dex()
+                enemy_AC = (10 + enemy.stat_modifier(enemy.dexterity))
+                hunter_net = 2
         elif action == 'Attack':
             hunter_net -=1
-            action = player_action(f"How do you want to attack? (Melee/Ranged{sneak_attack_text}{special_attack_text}) ", attack_options)
+            action = player_action(f"How do you want to attack? (Melee/Ranged/Cast spell{sneak_attack_text}{special_attack_text}) ", attack_options)
             if action == 'Melee':
                 while rounds < melee_attack_turns:
                     rounds += 1
@@ -598,6 +610,8 @@ def encounter(player, enemy):
                             input()
                     rounds += 1
                 rounds = 0
+            elif action == 'Cast spell':
+                for spell in player.known_spells
 
         if enemy.health > 0 and dodged == False:
             enemy_action = enemy_action_determiner(enemy, player)

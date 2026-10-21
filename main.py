@@ -213,7 +213,7 @@ def inventory():
     elif inventory_selection == 'Use consumable':
         for item in player_data.player_inventory:
             if item.type == 'Consumable' and item.amount > 0:
-                print(f"Name: {item.name} - Amount: {item.amount} - Healing: {item.healing}")
+                print(f"Name: {item.name} - Amount: {item.amount} - Healing: {item.healing[0]}-{item.healing[1]}")
                 consumables.append(item)
 
         if len(consumables) == 0:
@@ -262,7 +262,7 @@ def inventory():
                                 player.ranged = item
                             return
                     
-                print("Please pick a valid item")
+                print("Please pick a valid item.")
         else:
             return
 
