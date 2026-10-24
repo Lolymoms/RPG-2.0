@@ -1,13 +1,13 @@
 #fully written by claude! I did not make this
 
 """
-enemy_tester.py - balance-testing tool for the text RPG.
+balance_calculator.py - balance-testing tool for the text RPG. It balances ENEMIES and SPELLS.
 
 Put this file in the same folder as enemy_data.py and player_data.py, then run:
 
-    python enemy_tester.py
+    python balance_calculator.py
 
-and paste an enemy's stats, e.g.
+ENEMIES: paste an enemy's stats, e.g.
 
     ('Warden Boss', 2, 1, 35, 14, 2, 15, 5, boss=True, special_attack='Basic')
 
@@ -15,9 +15,14 @@ and paste an enemy's stats, e.g.
 enemy that already exists in enemy_data.py, like  feral_dog).
 You can also run it with the stats as an argument:
 
-    python enemy_tester.py "'Warden Boss', 2, 1, 35, 14, 2, 15, 5, boss=True, special_attack='Basic'"
+    python balance_calculator.py "'Warden Boss', 2, 1, 35, 14, 2, 15, 5, boss=True, special_attack='Basic'"
 
-Every class is simulated at three player levels: enemy level - 1, enemy level, enemy level + 1.
+Every class (now including the Mage, with its spells) is simulated at three player levels:
+enemy level - 1, enemy level, enemy level + 1.
+
+SPELLS: type a spell's name from player_data.py (e.g.  firebolt), a whole  Spell(...)  line, or  spell: ('Name', ...)
+to see whether it is too weak / too strong compared with your other spells, with a suggested fix.
+Type  spells  to compare every spell at once.
 Everything you are likely to want to tweak is in the CONFIG section just below.
 """
 
@@ -55,6 +60,9 @@ LEVEL_UP_PICKS = {
     'Ranger':    ['dexterity', 'ranged_skill'],
     'Rogue':     ['dexterity', 'melee_skill'],
     'Hunter':    ['strength', 'ranged_skill'],
+    # Your game's level-up menu has no Intelligence option yet, so a Mage can only pick from the same four stats.
+    # If you add one, put 'intelligence' in here to see what it does to mana and spell hit chance.
+    'Mage':      ['dexterity', 'ranged_skill'],
 }
 # max HP gained per level (copied from Player.add_experience)
 HP_PER_LEVEL = {'Barbarian': 12, 'Hunter': 10}
@@ -66,6 +74,27 @@ HEAL_BELOW_FRACTION = 0.35      # drink a potion at/under this fraction of max H
 BARBARIAN_RAGE = 'smart'  # 'immediately' | 'smart' (only if it saves turns) | 'never'
 HUNTER_NET = 'smart'            # 'immediately' | 'smart' (only if it saves turns) | 'never'
 HUNTER_NET_ROUNDS = 2           # how many rounds of the Hunter's attacks the net affects
+
+# ---- spells ----
+# Which spells each class has learned (names from player_data.py). In your game a class learns
+# (intelligence // 3) - 1 of them: Barbarian 1, Rogue 2, Ranger 3, Hunter 3, Mage 4. Change these to test other picks.
+SPELL_LOADOUTS = {
+    'Barbarian': ['Searing smite'],
+    'Ranger':    ['Shield', 'Freeze', 'Arcane blast'],
+    'Rogue':     ['Searing smite', 'Arcane blast'],
+    'Hunter':    ['Poison', 'Shield', 'Earth spike'],
+    'Mage':      ['Minor healing', 'Firebolt', 'Poison', 'Arcane blast'],
+}
+# (These are the best picks I found by trying every legal combination - a smart player. A careless one does worse.)
+SPELL_DAMAGE_PER_LEVEL = 0      # like WEAPON_DAMAGE_PER_LEVEL, but for spells. 0 = spells never get stronger (as in the game now)
+START_MANA_FRACTION = 1.0       # fraction of the mana pool you start each fight with. 1.0 = fresh from a campfire.
+                                # Lower it (e.g. 0.5) to model a dungeon where you fight several times between rests.
+# Your game lets you do a 0.5 'bonus' action (potion, class action, shield, searing smite, minor healing) and then still
+# attack in the same turn. True = the simulation does that. False = a bonus action uses up your whole turn (how this
+# tool used to work before spells existed).
+BONUS_ACTIONS_STACK = True
+BUFF_MIN_TURNS = 2              # only cast Shield / Searing smite if the fight should last at least this many more turns
+FREEZE_MIN_TURNS = 3            # only cast Freeze if the fight should last at least this many more turns
 
 # ---- reaction-time minigames (special attacks) ----
 # Your game measures reaction time in hundredths of a second (35 = 0.35s).
@@ -82,7 +111,10 @@ HARD_BELOW = 80
 FAIR_BELOW = 95
 FAIR_HP_LOSS = 40
 
-CLASSES = ['Barbarian', 'Ranger', 'Rogue', 'Hunter']
+CLASSES = ['Barbarian', 'Ranger', 'Rogue', 'Hunter', 'Mage']   # every class that is simulated, shown and averaged
+# The classes used to decide an enemy's TYPE (tank, glass cannon...). Left at the original four so adding the Mage
+# doesn't change what kind of enemy something is.
+TYPE_CLASSES = ['Barbarian', 'Ranger', 'Rogue', 'Hunter']
 MAX_ROUNDS = 30  # safety valve so a stalemate can't loop forever (counts as a loss)
 
 # =====================================================================================
@@ -108,8 +140,9 @@ def type_adjust(dmg, dmg_type, enemy):
 
 
 @lru_cache(maxsize=None)
-def exp_hit(base, stat_mod, armor, dmg_type, vulnerable, resistant):
-    """Average damage of one successful normal attack (same maths as damage_calc)."""
+def exp_hit(base, stat_mod, armor, dmg_type, vulnerable, resistant, cap=None):
+    """Average damage of one successful normal attack (same maths as damage_calc).
+    cap = the target's remaining HP: damage past that is wasted, so it isn't counted."""
     lo, hi = int(base * 0.7), int(base * 1.3)
     total = 0
     for r in range(lo, hi + 1):
@@ -118,7 +151,22 @@ def exp_hit(base, stat_mod, armor, dmg_type, vulnerable, resistant):
             d *= 2
         elif dmg_type == resistant:
             d //= 2
-        total += d
+        total += d if cap is None else min(d, cap)
+    return total / (hi - lo + 1)
+
+
+@lru_cache(maxsize=None)
+def exp_spell(base, stat_mod, armor, dmg_type, vulnerable, resistant, cap=None):
+    """Average damage of one spell that hits (same maths as damage_calc's 'Spell' branch: rolls base..base*1.3)."""
+    lo, hi = base, int(base * 1.3)
+    total = 0
+    for r in range(lo, hi + 1):
+        d = max(1, r + stat_mod - armor)
+        if dmg_type == vulnerable:
+            d *= 2
+        elif dmg_type == resistant:
+            d //= 2
+        total += d if cap is None else min(d, cap)
     return total / (hi - lo + 1)
 
 
@@ -168,17 +216,34 @@ class Fighter:
     armor: int
     melee_skill: int
     ranged_skill: int
+    intelligence: int           # mana pool = intelligence (like Player.__init__), also the spell bonus
     melee_dmg: int
     melee_type: str
     melee_light: bool
     ranged_dmg: int
     ranged_type: str
+    spells: tuple               # Spell objects this fighter knows
+
+
+def spells_by_name():
+    """Every Spell defined in player_data.py, e.g. {'Firebolt': <Spell>, ...}"""
+    found = {}
+    for value in vars(player_data).values():
+        if isinstance(value, player_data.Spell):
+            found[value.name] = value
+    return found
+
+
+def default_loadout(class_name):
+    known = spells_by_name()
+    return tuple(known[name] for name in SPELL_LOADOUTS.get(class_name, []) if name in known)
 
 
 @lru_cache(maxsize=None)
-def build_fighter(class_name, level):
+def build_fighter(class_name, level, spells=None):
     """Creates the real level-1 Player from player_data (so class stats stay in sync with your game),
-    then applies the modelled level-ups."""
+    then applies the modelled level-ups.  `spells` = a tuple of Spell objects, or None for the class's
+    default loadout from SPELL_LOADOUTS."""
     def fake_input(prompt=''):
         if 'called' in prompt:
             return 'Tester'
@@ -194,11 +259,13 @@ def build_fighter(class_name, level):
             setattr(p, stat, getattr(p, stat) + (1 if stat.endswith('_skill') else 2))
         p.max_health += HP_PER_LEVEL.get(class_name, HP_PER_LEVEL_DEFAULT)
     bonus = WEAPON_DAMAGE_PER_LEVEL * (level - 1)
+    if spells is None:
+        spells = default_loadout(class_name)
     return Fighter(
         class_name, level, p.max_health, p.strength, p.dexterity, p.armor,
-        p.melee_skill, p.ranged_skill,
+        p.melee_skill, p.ranged_skill, p.intelligence,
         p.melee.damage + bonus, p.melee.damage_type, p.melee.attack_type == 'Light',
-        p.ranged.damage + bonus, p.ranged.damage_type,
+        p.ranged.damage + bonus, p.ranged.damage_type, spells,
     )
 
 
@@ -227,9 +294,17 @@ class Fight:
         self.dmg_taken = 0
         self.potions_used = 0
         self.rounds = 0
+        # spells
+        self.mana = int(pl.intelligence * START_MANA_FRACTION)
+        self.mana_used = 0
+        self.shield = False            # shield spell is up
+        self.smite = 0                 # melee hits left with searing smite
+        self.skip = 0                  # enemy turns still skipped (freeze)
+        self.freeze_pending = False    # freeze was cast this round: the enemy still attacks once, THEN it's frozen
         # encounter() works these out ONCE at the start of the fight
         self.p_melee_bonus = mod(pl.strength) + pl.level // 2
         self.p_ranged_bonus = mod(pl.dexterity) + pl.level // 2
+        self.p_spell_bonus = mod(pl.intelligence) + pl.level // 2
         self.p_ac = 10 + mod(pl.dexterity)
         self.e_melee_bonus = mod(en.strength) + en.level // 2
         self.e_ranged_bonus = mod(en.dexterity) + en.level // 2
@@ -262,28 +337,70 @@ class Fight:
     def can_sneak(self):
         return self.pl.class_name == 'Rogue' and self.pl.melee_light
 
-    def hit_exp(self, kind):
-        pl, en = self.pl, self.en
-        if kind == 'melee':
-            return exp_hit(pl.melee_dmg, mod(self.str), en.armor, pl.melee_type, en.vulnerable, en.resistant)
-        return exp_hit(pl.ranged_dmg, mod(self.dex), en.armor, pl.ranged_type, en.vulnerable, en.resistant)
+    def target_hp(self):
+        """HP of the enemy that would take the next hit."""
+        for h in self.e_hps:
+            if h > 0:
+                return h
+        return 0
 
-    def option_values(self):
+    def hit_exp(self, kind, capped=False):
+        pl, en = self.pl, self.en
+        cap = self.target_hp() if capped else None
+        if kind == 'melee':
+            return exp_hit(pl.melee_dmg, mod(self.str), en.armor, pl.melee_type, en.vulnerable, en.resistant, cap)
+        return exp_hit(pl.ranged_dmg, mod(self.dex), en.armor, pl.ranged_type, en.vulnerable, en.resistant, cap)
+
+    def option_values(self, capped=False):
+        """Average damage of each way to attack. capped=True ignores damage beyond the target's remaining HP -
+        that's how the simulated player chooses (a 12-damage spell is no better than a 4-damage arrow on a 3 HP enemy)."""
         ac = self.enemy_ac()
         vals = {
-            'Melee': self.attack_count('melee') * hit_prob(self.p_melee_bonus, ac) * self.hit_exp('melee'),
-            'Ranged': self.attack_count('ranged') * hit_prob(self.p_ranged_bonus, ac) * self.hit_exp('ranged'),
+            'Melee': self.attack_count('melee') * hit_prob(self.p_melee_bonus, ac) * self.hit_exp('melee', capped),
+            'Ranged': self.attack_count('ranged') * hit_prob(self.p_ranged_bonus, ac) * self.hit_exp('ranged', capped),
         }
-        if self.can_sneak():
-            first = hit_prob(mod(self.dex), ac + self.en.level) * (self.hit_exp('melee') + self.pl.melee_dmg)
-            rest = (self.attack_count('melee') - 1) * hit_prob(self.p_melee_bonus, ac) * self.hit_exp('melee')
+        if self.can_sneak() and self.rounds <= 1:       # in the game the sneak attack is only offered in round 1
+            first = hit_prob(mod(self.dex), ac + self.en.level) * (self.hit_exp('melee', capped) * 3)    # and it does x3 damage
+            rest = (self.attack_count('melee') - 1) * hit_prob(self.p_melee_bonus, ac) * self.hit_exp('melee', capped)
             vals['Sneak attack'] = first + rest
         return vals
 
-    def special_value(self):
+    def special_value(self, capped=False):
         base = self.pl.melee_dmg * 2
         mults = (1.25, 1.0, 0.75, 0.5)
-        return sum(p * int(max(1, base * m - self.en.armor)) for p, m in zip(reaction_bands(), mults))
+        cap = self.target_hp() if capped else 10 ** 9
+        return sum(p * min(cap, int(max(1, base * m - self.en.armor))) for p, m in zip(reaction_bands(), mults))
+
+    # ---------- spell expectations ----------
+    def spell_base(self, spell):
+        """Base damage of a spell for this player's level (SPELL_DAMAGE_PER_LEVEL, like weapons)."""
+        return spell.damage + SPELL_DAMAGE_PER_LEVEL * (self.pl.level - 1)
+
+    def can_cast(self, spell):
+        return spell.mana_cost <= self.mana
+
+    def spell_named(self, name):
+        for s in self.pl.spells:
+            if s.name == name:
+                return s
+        return None
+
+    def spell_value(self, spell, capped=False):
+        """Average damage of one cast of an attack spell (hit chance x damage)."""
+        cap = self.target_hp() if capped else None
+        dmg = exp_spell(self.spell_base(spell), mod(self.pl.intelligence), self.en.armor,
+                        spell.damage_type, self.en.vulnerable, self.en.resistant, cap)
+        return hit_prob(self.p_spell_bonus, self.enemy_ac()) * dmg
+
+    def best_damage_spell(self, capped=False):
+        """The affordable attack spell with the highest average damage, and that damage."""
+        best, val = None, 0
+        for s in self.pl.spells:
+            if s.spell_type == 'Offensive' and self.can_cast(s):
+                v = self.spell_value(s, capped)
+                if v > val:
+                    best, val = s, v
+        return best, val
 
     def enemy_action(self, i=0):
         en = self.en
@@ -312,23 +429,33 @@ class Fight:
         return total
 
     # ---------- player decisions ----------
-    def best_attack(self):
-        vals = self.option_values()
+    def best_attack(self, capped=False):
+        vals = self.option_values(capped)
         name = max(vals, key=vals.get)
         return name, vals[name]
 
-    def want_heal(self, best):
-        if self.potions <= 0 or self.hp >= self.pl.max_hp:
+    def heal_source(self):
+        """('spell', Spell) or ('potion', None) or None. Healing spells first: mana comes back at the campfire."""
+        for s in self.pl.spells:
+            if s.spell_type == 'Healing' and self.can_cast(s):
+                return ('spell', s)
+        if self.potions > 0:
+            return ('potion', None)
+        return None
+
+    def want_heal(self, top):
+        if self.hp >= self.pl.max_hp or self.heal_source() is None:
             return False
         if self.hp > max(HEAL_BELOW_FRACTION * self.pl.max_hp, self.enemy_max_hit()):
             return False
-        top = max(best, self.special_value() if self.special_ready else 0)
         return top < self.e_hp          # if we'll probably finish it this turn, just attack
 
     def want_class_action(self, best):
         if not self.class_ready:
             return False
         cls, e = self.pl.class_name, self.e_hp
+        # turns the class action costs you: 0 if bonus actions stack with an attack, otherwise a whole turn
+        lost = 0 if BONUS_ACTIONS_STACK else 1
         base_turns = turns_needed(e, [], best)
         if cls == 'Barbarian':
             if BARBARIAN_RAGE == 'never':
@@ -340,12 +467,12 @@ class Fight:
             self.dex -= 3
             raged = self.best_attack()[1]
             self.str, self.dex = old
-            return turns_needed(e, [(0, 1), (raged, 2)], best) < base_turns
+            return turns_needed(e, [(0, lost), (raged, 2)], best) < base_turns
         if cls == 'Ranger':
             self.ranger_bonus = True
             boosted = self.best_attack()[1]
             self.ranger_bonus = False
-            return turns_needed(e, [(0, 1)], boosted) < base_turns
+            return turns_needed(e, [(0, lost)], boosted) < base_turns
         if cls == 'Hunter':
             if HUNTER_NET == 'never':
                 return False
@@ -354,8 +481,29 @@ class Fight:
             self.net_active = True
             netted = self.best_attack()[1]
             self.net_active = False
-            return turns_needed(e, [(0, 1), (netted, HUNTER_NET_ROUNDS)], best) < base_turns
-        return False    # Rogue's class action only reveals info - no combat effect
+            return turns_needed(e, [(0, lost), (netted, HUNTER_NET_ROUNDS)], best) < base_turns
+        return False    # Rogue's class action only reveals info - no combat effect (and the Mage has none yet)
+
+    def pick_buff(self, option, best, spell_val, turns_left):
+        """A bonus-action buff spell (Shield / Searing smite) worth casting this turn, or None."""
+        if turns_left < BUFF_MIN_TURNS:
+            return None             # the fight is nearly over - don't waste mana
+        attack_costs = [s.mana_cost for s in self.pl.spells if s.spell_type == 'Offensive']
+        reserve = min(attack_costs) if attack_costs else 0   # never spend the mana you need for your next attack spell
+        for s in self.pl.spells:
+            if not self.can_cast(s) or self.mana - s.mana_cost < reserve:
+                continue
+            if s.name == 'Shield' and not self.shield:
+                return s
+            if s.name == 'Searing smite' and self.smite == 0 and option == 'Melee' and best >= spell_val:
+                return s
+        return None
+
+    def want_freeze(self, turns_left):
+        s = self.spell_named('Freeze')
+        if s is None or not self.can_cast(s) or self.skip > 0 or self.freeze_pending:
+            return None
+        return s if turns_left >= FREEZE_MIN_TURNS else None
 
     # ---------- actions ----------
     def use_class_action(self):
@@ -372,6 +520,34 @@ class Fight:
             self.e_dex //= 2
             self.net_active = True
             self.net_counter = HUNTER_NET_ROUNDS + 1     # ticks down at the top of each round, like rage
+
+    def cast(self, spell):
+        """Same rules as Spell.cast_spell + the effects in encounter()."""
+        rng, pl, en = self.rng, self.pl, self.en
+        self.mana -= spell.mana_cost
+        self.mana_used += spell.mana_cost
+        if spell.spell_type == 'Healing':
+            self.hp = min(pl.max_hp, self.hp + rng.randint(*spell.healing))
+        elif spell.damage > 0:
+            if rng.randint(1, 20) + self.p_spell_bonus >= self.enemy_ac():
+                base = self.spell_base(spell)
+                d = max(1, rng.randint(base, int(base * 1.3)) + mod(pl.intelligence) - en.armor)
+                self.damage_target(type_adjust(d, spell.damage_type, en))
+                if spell.name == 'Freeze':
+                    self.freeze_pending = True
+        elif spell.name == 'Shield':
+            self.shield = True
+        elif spell.name == 'Searing smite':
+            self.smite = 2
+
+    def do_heal(self):
+        kind, spell = self.heal_source()
+        if kind == 'spell':
+            self.cast(spell)
+        else:
+            self.potions -= 1
+            self.potions_used += 1
+            self.hp = min(self.pl.max_hp, self.hp + self.rng.randint(*POTION_HEAL))
 
     def player_hit_damage(self, kind):
         pl, en = self.pl, self.en
@@ -398,12 +574,19 @@ class Fight:
                     break
                 if option == 'Sneak attack' and i == 0:
                     if rng.randint(1, 20) + mod(self.dex) >= ac + en.level:
-                        self.damage_target(self.player_hit_damage('melee') + pl.melee_dmg)
+                        self.damage_target(self.player_hit_damage('melee') * 3)
                 elif rng.randint(1, 20) + bonus >= ac:
-                    self.damage_target(self.player_hit_damage(kind))
+                    dmg = self.player_hit_damage(kind)
+                    if option == 'Melee' and self.smite > 0:      # searing smite: x1.5, counts hits
+                        dmg = int(dmg * 1.5)
+                        self.smite -= 1
+                    self.damage_target(dmg)
 
     def enemy_turn(self):
         en, rng, pl = self.en, self.rng, self.pl
+        if self.skip > 0:           # frozen
+            self.skip -= 1
+            return
         for i, h in enumerate(self.e_hps):
             if h <= 0:
                 continue
@@ -411,19 +594,74 @@ class Fight:
             dmg = 0
             if act == 'special':
                 t = roll_reaction(rng)
+                if self.shield:
+                    t //= 2
+                    self.shield = False
                 mult = 0.5 if t <= 35 else 0.75 if t <= 60 else 1
                 dmg = int(max(1, en.melee * 2 * mult - pl.armor))
                 self.e_special[i] = False
             elif act == 'melee':
                 if rng.randint(1, 20) + self.e_melee_bonus >= self.p_ac:
                     dmg = max(1, rng.randint(int(en.melee * 0.7), int(en.melee * 1.3)) + mod(en.strength) - pl.armor)
+                    if self.shield:
+                        dmg = int(dmg * 0.75)
+                        self.shield = False
             else:
                 if rng.randint(1, 20) + self.e_ranged_bonus >= self.p_ac:
                     dmg = max(1, rng.randint(int(en.ranged * 0.7), int(en.ranged * 1.3)) + mod(self.e_dex) - pl.armor)
+                    if self.shield:
+                        dmg = int(dmg * 0.75)
+                        self.shield = False
             self.hp -= dmg
             self.dmg_taken += dmg
             if self.hp <= 0:
                 return
+
+    # ---------- one turn of the player ----------
+    def take_turn(self):
+        """Your game lets you do a 0.5 'bonus' action (potion, class action, shield, searing smite, minor healing)
+        and THEN a full action in the same turn, as long as you still have action left (BONUS_ACTIONS_STACK).
+        The simulated player takes at most one bonus action, then one full action."""
+        points = 1.0
+        _, plain_best = self.best_attack()                       # un-capped: used to judge class actions
+        option, best = self.best_attack(capped=True)             # capped: used to choose what to do
+        spell, spell_val = self.best_damage_spell(capped=True)
+        special = self.special_value(capped=True) if self.special_ready else 0
+        top = max(best, spell_val, special)
+        turns_left = turns_needed(self.e_hp, [], max(plain_best, top))
+
+        # ----- bonus action (at most one) -----
+        took_bonus = True
+        if self.want_heal(top):
+            self.do_heal()
+        elif self.want_class_action(plain_best):
+            self.use_class_action()
+        else:
+            buff = self.pick_buff(option, best, spell_val, turns_left)
+            if buff:
+                self.cast(buff)
+            else:
+                took_bonus = False
+        if took_bonus:
+            points = points - 0.5 if BONUS_ACTIONS_STACK else 0
+        if points <= 0:
+            return
+
+        # ----- full action -----
+        # the bonus action may have changed things (smite, rage...), so look again
+        freeze = self.want_freeze(turns_left)
+        if freeze:
+            self.cast(freeze)
+            return
+        option, best = self.best_attack(capped=True)
+        spell, spell_val = self.best_damage_spell(capped=True)
+        special = self.special_value(capped=True) if self.special_ready else 0
+        if spell is not None and spell_val > max(best, special):
+            self.cast(spell)
+        elif self.special_ready and special >= best:
+            self.attack('Special attack')
+        else:
+            self.attack(option)
 
     # ---------- the fight ----------
     def run(self):
@@ -441,21 +679,13 @@ class Fight:
             if self.rage_counter == 0:
                 self.str, self.dex = pl.strength, pl.dexterity
 
-            option, best = self.best_attack()
-            if self.want_heal(best):
-                self.potions -= 1
-                self.potions_used += 1
-                self.hp = min(pl.max_hp, self.hp + rng.randint(*POTION_HEAL))
-            elif self.want_class_action(best):
-                self.use_class_action()
-            elif self.special_ready and self.special_value() >= best:
-                self.attack('Special attack')
-            else:
-                self.attack(option)
-
+            self.take_turn()
             if self.e_hp <= 0:
                 return True
             self.enemy_turn()
+            if self.freeze_pending:         # the enemy gets one last attack, then it's frozen for 2 turns
+                self.skip = 2
+                self.freeze_pending = False
             if self.hp <= 0:
                 return False
         return False
@@ -513,7 +743,7 @@ def enemy_metrics(en):
     rng = random.Random(0)
     dpr, hit, hp, foe = [], [], [], []
     bands = reaction_bands()
-    for cls in CLASSES:
+    for cls in TYPE_CLASSES:
         pl = build_fighter(cls, en.level)
         f = Fight(pl, en, rng)
         vals = {k: v for k, v in f.option_values().items() if k in ('Melee', 'Ranged')}
@@ -687,7 +917,7 @@ def rate(win_pct, hp_loss_pct):
 
 
 def simulate(pl, en, n, rng):
-    wins = rounds = dmg = potions = used = 0
+    wins = rounds = dmg = potions = used = mana = 0
     for _ in range(n):
         f = Fight(pl, en, rng)
         wins += f.run()
@@ -695,10 +925,15 @@ def simulate(pl, en, n, rng):
         dmg += f.dmg_taken
         potions += f.potions_used
         used += f.class_used
+        mana += f.mana_used
     probe = Fight(pl, en, rng)
     vals = {k: v for k, v in probe.option_values().items() if k in ('Melee', 'Ranged')}
     kind = max(vals, key=vals.get)
     you_hit = hit_prob(probe.p_ranged_bonus if kind == 'Ranged' else probe.p_melee_bonus, probe.e_ac_start)
+    spell, spell_val = probe.best_damage_spell()
+    if spell is not None and spell_val > vals[kind]:       # casters: their best attack is a spell
+        kind = 'Spell'
+        you_hit = hit_prob(probe.p_spell_bonus, probe.e_ac_start)
     foe_bonus = probe.e_ranged_bonus if en.ranged > 0 and en.boss else probe.e_melee_bonus
     foe_hit = hit_prob(foe_bonus, probe.p_ac)
     win_pct = 100 * wins / n
@@ -706,7 +941,7 @@ def simulate(pl, en, n, rng):
     return {
         'win': win_pct, 'dmg': avg_dmg, 'dmg_pct': 100 * avg_dmg / pl.max_hp, 'rounds': rounds / n,
         'potions': potions / n, 'you_hit': 100 * you_hit, 'foe_hit': 100 * foe_hit,
-        'weapon': kind[0], 'hp': pl.max_hp, 'ability': 100 * used / n,
+        'weapon': kind[0], 'hp': pl.max_hp, 'ability': 100 * used / n, 'mana': mana / n,
     }
 
 
@@ -748,7 +983,7 @@ def report(enemy, n=None, rng=None, forced_type=None):
             summary.append((label, None))
             continue
         print(f"  {'Class':<10}{'HP':>4}  {'Win %':>6}  {'Dmg taken':>15}  {'Rounds':>6}  {'Potions':>7}  "
-              f"{'Hit% you/foe':>14}  {'Ability%':>8}  Rating")
+              f"{'Hit% you/foe':>14}  {'Ability%':>8}  {'Mana':>4}  Rating")
         rows = []
         for cls in CLASSES:
             r = simulate(build_fighter(cls, lvl), en, n, rng)
@@ -756,19 +991,20 @@ def report(enemy, n=None, rng=None, forced_type=None):
             rating = rate(r['win'], r['dmg_pct'])
             print(f"  {cls:<10}{r['hp']:>4}  {r['win']:>6.1f}  {r['dmg']:>7.1f} ({r['dmg_pct']:>3.0f}%)  "
                   f"{r['rounds']:>6.1f}  {r['potions']:>7.1f}  "
-                  f"{r['you_hit']:>5.0f}/{r['foe_hit']:<3.0f} ({r['weapon']})  {r['ability']:>8.0f}  {rating}")
+                  f"{r['you_hit']:>5.0f}/{r['foe_hit']:<3.0f} ({r['weapon']})  {r['ability']:>8.0f}  {r['mana']:>4.0f}  {rating}")
         avg_win = sum(r['win'] for r in rows) / len(rows)
         avg_loss = sum(r['dmg_pct'] for r in rows) / len(rows)
         overall = rate(avg_win, avg_loss)
         print(f"  {'Average':<10}{'':>4}  {avg_win:>6.1f}  {'':>7} ({avg_loss:>3.0f}%)  "
-              f"{sum(r['rounds'] for r in rows) / len(rows):>6.1f}  {'':>7}  {'':>14}  {'':>8}  {overall}")
+              f"{sum(r['rounds'] for r in rows) / len(rows):>6.1f}  {'':>7}  {'':>14}  {'':>8}  {'':>4}  {overall}")
         summary.append((label, overall))
         if delta == 0:
             at_level = (avg_win, avg_loss, overall)
     print()
     print("Overall: " + "  |  ".join(f"{l.title()}: {o if o else 'n/a'}" for l, o in summary))
-    print("(Hit%: M/R = best weapon for that class, melee or ranged. Boss specials always hit and aren't in 'foe'.)")
-    print("(Ability% = how often the class action was worth using. Dmg taken is raw, before potions.)")
+    print("(Hit%: M/R/S = best attack for that class: melee, ranged or a spell. Boss specials always hit and aren't in 'foe'.)")
+    print("(Ability% = how often the class action was worth using. Mana = average mana spent. Dmg taken is raw, before potions.)")
+    print("(Spells used: " + "; ".join(f"{c}: {', '.join(s.name for s in default_loadout(c)) or 'none'}" for c in CLASSES) + ")")
     suggest(en, at_level, forced_type)
 
 
@@ -870,17 +1106,390 @@ def split_type(text):
     return None, text
 
 
+# =====================================================================================
+# spells: balancing
+# =====================================================================================
+#
+# How a spell is judged
+#   Everything is measured in TURNS OF FIGHTING, so damage, healing and buffs can be compared:
+#     damage        = damage dealt / what your best weapon does per turn      (kills the enemy that much sooner)
+#     healing       = HP healed / what the enemy does to you per turn          (keeps you alive that much longer)
+#     Freeze        = its damage + the enemy turns it skips                   (each skipped turn is a turn gained)
+#     Shield        = 25% of one enemy hit, as turns of enemy damage
+#     Searing smite = the extra damage on your next 2 melee hits / weapon damage per turn
+#   NET: an 'Action' spell is cast INSTEAD of attacking, so subtract the 1 turn your weapon attack would have been worth.
+#        A 'Bonus action' spell doesn't cost your attack (see BONUS_ACTIONS_STACK), so nothing is subtracted.
+#   NET PER MANA: mana is the shared budget, so this is the fair way to compare spells.
+#   The verdict compares that with the MEDIAN of all your other spells (SPELL_BAND = how far off still counts as 'in line').
+# It's measured for the classes that can learn the spell, against REFERENCE_ENEMIES (each at its own level, so weapons
+# have grown by the same amount as in the enemy tester).
+
+SPELL_BAND = 0.30               # +-30% of the median spell is "IN LINE"
+SPELL_SIMS = 1500               # fights per class per enemy for the 'what does it do in fights' check
+SPELL_MAX_STEPS = 10            # how far the tuner is allowed to move one number
+UNFINISHED_SPELLS = ('Tornado',)        # not implemented in dungeon_1.py yet - left out of the comparison
+# The enemies spells are measured against. Names from enemy_data.py, or full Enemy(...) lines
+# (the miniboss and boss live inside dungeon_1.py, so they are copied in here).
+REFERENCE_ENEMIES = [
+    "feral_dog",
+    "cave_spider",
+    "('Gelatinous Cube', 1, 1, 40, 6, 3, 11, 6, 0, 'Slashing', 'None', True, 'Basic')",
+    "('Warden Boss', 2, 1, 35, 14, 2, 15, 5, boss=True, special_attack='Basic')",
+]
+FREEZE_SKIPPED_TURNS = 2        # how many enemy turns Freeze takes away (matches dungeon_1.py)
+
+
+def reference_enemies():
+    found = []
+    for text in REFERENCE_ENEMIES:
+        try:
+            found.append(parse_enemy(text))
+        except Exception as e:
+            print(f"(skipping reference enemy {text!r}: {e})")
+    return found
+
+
+def enemy_hit_stats(f):
+    """(chance one enemy hits this fighter, average damage when it does) - normal attacks only."""
+    en = f.en
+    if en.ranged > en.melee:
+        base, m, bonus = en.ranged, mod(en.dexterity), f.e_ranged_bonus
+    else:
+        base, m, bonus = en.melee, mod(en.strength), f.e_melee_bonus
+    lo, hi = int(base * 0.7), int(base * 1.3)
+    avg_hit = _avg(max(1, r + m - f.pl.armor) for r in range(lo, hi + 1))
+    return hit_prob(bonus, f.p_ac), avg_hit
+
+
+def spell_cast_value(spell, pl, en):
+    """What ONE cast is worth against this enemy, in turns of fighting.
+    Returns (value, net, hit chance %, weapon damage per turn)."""
+    f = Fight(pl, en, random.Random(0))
+    weapon = max(v for k, v in f.option_values().items() if k in ('Melee', 'Ranged'))
+    w = max(weapon, 0.1)                               # your damage per turn
+    turns_to_kill = en.health / w
+    p_hit = hit_prob(f.p_spell_bonus, f.e_ac_start)
+    foe_hit, foe_dmg = enemy_hit_stats(f)
+    d = max(foe_hit * foe_dmg, 0.1)                    # the enemy's damage per turn against you
+    hit = 100
+    if spell.spell_type == 'Healing':
+        value = ((spell.healing[0] + spell.healing[1]) / 2) / d
+    elif spell.damage > 0:
+        base = spell.damage + SPELL_DAMAGE_PER_LEVEL * (pl.level - 1)
+        value = p_hit * exp_spell(base, mod(pl.intelligence), en.armor, spell.damage_type, en.vulnerable, en.resistant) / w
+        hit = 100 * p_hit
+        if spell.name == 'Freeze':
+            value += p_hit * min(FREEZE_SKIPPED_TURNS, max(0.0, turns_to_kill - 1))     # enemy turns skipped
+    elif spell.name == 'Shield':
+        value = 0.25 * min(1.0, turns_to_kill * foe_hit) / foe_hit if foe_hit > 0 else 0.0
+    elif spell.name == 'Searing smite':
+        p_melee = hit_prob(f.p_melee_bonus, f.e_ac_start)
+        hits = min(2.0, f.attack_count('melee') * turns_to_kill * p_melee)
+        value = 0.5 * f.hit_exp('melee') * hits / w
+    else:
+        value = 0.0                 # an effect this tool doesn't know how to value
+    replaces_attack = spell.action != 'Bonus action' or not BONUS_ACTIONS_STACK
+    net = value - (1.0 if replaces_attack else 0.0)
+    return value, net, hit, weapon
+
+
+def classes_for(spell_name):
+    """Classes that can learn this spell (from player_data.spellbook). Not in the spellbook -> every class."""
+    book = player_data.spellbook.get(1, {})
+    found = [cls for cls in CLASSES if spell_name in [s.name for s in book.get(cls, [])]]
+    return found or list(CLASSES), bool(found)
+
+
+def spell_scores(spell, enemies=None):
+    """Per class: averages over the reference enemies. Returns (rows, overall net-per-mana or None)."""
+    enemies = enemies or reference_enemies()
+    classes, _ = classes_for(spell.name)
+    rows = []
+    for cls in classes:
+        vals, nets, hits, weps, lvls = [], [], [], [], []
+        for en in enemies:
+            pl = build_fighter(cls, max(1, en.level))
+            v, n, h, w = spell_cast_value(spell, pl, en)
+            vals.append(v); nets.append(n); hits.append(h); weps.append(w)
+        mana = build_fighter(cls, 1).intelligence
+        casts = mana // spell.mana_cost
+        rows.append(dict(cls=cls, mana=mana, casts=casts, hit=_avg(hits), value=_avg(vals),
+                         weapon=_avg(weps), net=_avg(nets), per_mana=_avg(nets) / spell.mana_cost))
+    usable = [r['per_mana'] for r in rows if r['casts'] > 0]
+    return rows, (_avg(usable) if usable else None)
+
+
+def median(xs):
+    xs = sorted(xs)
+    mid = len(xs) // 2
+    return xs[mid] if len(xs) % 2 else (xs[mid - 1] + xs[mid]) / 2
+
+
+def spell_target(exclude_name=None, enemies=None):
+    """The median net-value-per-mana of every finished spell in player_data.py (except `exclude_name`)."""
+    scores = []
+    for name, sp in spells_by_name().items():
+        if name in UNFINISHED_SPELLS or name == exclude_name:
+            continue
+        overall = spell_scores(sp, enemies)[1]
+        if overall is not None:
+            scores.append(overall)
+    return median(scores) if scores else None
+
+
+def spell_rating(per_mana, target):
+    if per_mana is None:
+        return 'UNUSABLE'
+    if target is None or target <= 0:
+        return 'IN LINE'
+    ratio = per_mana / target
+    if ratio < 1 - SPELL_BAND:
+        return 'TOO WEAK'
+    if ratio > 1 + SPELL_BAND:
+        return 'TOO STRONG'
+    return 'IN LINE'
+
+
+def apply_spell_lever(spell, lever, direction):
+    """Returns (new spell, (what, old, new)) or None if the lever can't move that way."""
+    sign = 1 if direction == 'buff' else -1
+    new = copy.deepcopy(spell)
+    if lever == 'damage':
+        if spell.damage <= 0 or spell.damage + sign < 1:
+            return None
+        new.damage = spell.damage + sign
+        return new, ('damage', spell.damage, new.damage)
+    if lever == 'healing':
+        lo, hi = spell.healing
+        if lo + sign < 1:
+            return None
+        new.healing = (lo + sign, hi + sign)
+        return new, ('healing', f"{lo}-{hi}", f"{lo + sign}-{hi + sign}")
+    if lever == 'mana':
+        cost = spell.mana_cost - sign          # a buff makes it CHEAPER
+        if cost < 1:
+            return None
+        new.mana_cost = cost
+        return new, ('mana cost', spell.mana_cost, cost)
+    return None
+
+
+def spell_levers(spell):
+    levers = []
+    if spell.spell_type == 'Healing':
+        levers.append('healing')
+    elif spell.damage > 0:
+        levers.append('damage')
+    levers.append('mana')
+    return levers
+
+
+def tune_spell(spell, rating, target, enemies):
+    """For each lever on its own, the smallest change that gets the spell IN LINE (or as close as it gets)."""
+    direction = 'buff' if rating == 'TOO WEAK' else 'nerf'
+    start = spell_scores(spell, enemies)[1]
+    start_gap = abs(start - target) if start is not None else 1e9
+    options = []
+    for lever in spell_levers(spell):
+        cur, first, last, steps = spell, None, None, 0
+        best = None
+        for _ in range(SPELL_MAX_STEPS):
+            step = apply_spell_lever(cur, lever, direction)
+            if step is None:
+                break
+            cur = step[0]
+            steps += 1
+            first = step[1] if first is None else first
+            last = step[1]
+            per_mana = spell_scores(cur, enemies)[1]
+            r = spell_rating(per_mana, target)
+            gap = abs(per_mana - target) if per_mana is not None else 1e9
+            if best is None or gap < best[0]:
+                best = (gap, steps, (first[0], first[1], last[2]), per_mana, r, cur)
+            if r == 'IN LINE':
+                break
+            overshot = (direction == 'buff' and r == 'TOO STRONG') or (direction == 'nerf' and r == 'TOO WEAK')
+            if overshot:
+                break
+        if best and best[0] < start_gap:        # a lever that makes things worse (e.g. cheaper mana on a spell
+            options.append(best)                # that is worse than your weapon) isn't a fix - leave it out
+    options.sort(key=lambda o: (o[4] != 'IN LINE', o[1]))
+    return options
+
+
+def fight_impact(spell, enemies):
+    """For each class that can learn the spell: avg at-level win % with the spell in its loadout vs without it."""
+    classes, _ = classes_for(spell.name)
+    rows = []
+    for cls in classes:
+        base = [s for s in default_loadout(cls) if s.name != spell.name]
+        with_it, without = tuple([spell] + base), tuple(base)
+        w_with, w_without = [], []
+        for en in enemies:
+            lvl = max(1, en.level)
+            w_with.append(simulate(build_fighter(cls, lvl, with_it), en, SPELL_SIMS, random.Random(7))['win'])
+            w_without.append(simulate(build_fighter(cls, lvl, without), en, SPELL_SIMS, random.Random(7))['win'])
+        rows.append((cls, _avg(w_without), _avg(w_with), [b - a for a, b in zip(w_without, w_with)]))
+    return rows
+
+
+def describe_spell(sp):
+    bits = [f"{sp.spell_type}", f"cost {sp.mana_cost} mana", sp.action]
+    if sp.spell_type == 'Healing':
+        bits.append(f"heals {sp.healing[0]}-{sp.healing[1]}")
+    elif sp.damage > 0:
+        bits.append(f"damage {sp.damage}-{int(sp.damage * 1.3)} {sp.damage_type}")
+    return ', '.join(bits)
+
+
+def report_spell(spell, forced_target=None):
+    enemies = reference_enemies()
+    print()
+    print('=' * 82)
+    print(f"SPELL: {spell.name}  ({describe_spell(spell)})")
+    classes, in_book = classes_for(spell.name)
+    if not in_book:
+        print("(not in player_data.spellbook yet, so it is tested on every class)")
+    print(f"Measured against: " + ", ".join(f"{e.name} (L{e.level})" for e in enemies))
+    print('=' * 82)
+    if spell.name in UNFINISHED_SPELLS:
+        print("Note: this spell isn't implemented in dungeon_1.py yet, so its numbers don't mean much.")
+
+    rows, overall = spell_scores(spell, enemies)
+    print(f"  {'Class':<10}{'Mana':>5}{'Casts':>6}{'Hit%':>6}{'Value':>7}{'Net':>7}{'Net/mana':>10}{'Weapon dmg/turn':>17}")
+    for r in rows:
+        extra = "   <- can't afford a single cast!" if r['casts'] == 0 else ''
+        print(f"  {r['cls']:<10}{r['mana']:>5}{r['casts']:>6}{r['hit']:>6.0f}{r['value']:>7.2f}{r['net']:>7.2f}"
+              f"{r['per_mana']:>10.3f}{r['weapon']:>17.1f}{extra}")
+    print("  (Value = turns of fighting one cast is worth. Net = Value minus the 1 turn a weapon attack would have been")
+    print("   worth - bonus-action spells give up nothing. Net/mana is what gets compared between spells.)")
+
+    target = forced_target if forced_target is not None else spell_target(spell.name, enemies)
+    rating = spell_rating(overall, target)
+    print()
+    print('-' * 82)
+    if overall is None:
+        print("VERDICT: UNUSABLE - none of the classes that learn it have enough mana to cast it once.")
+        print("  Lower its mana cost, or raise the mana of those classes (intelligence).")
+        return
+    pct = 100 * overall / target if target else 0
+    print(f"VERDICT: {rating} - net value per mana {overall:.3f}, your other spells' median is {target:.3f} ({pct:.0f}% of it).")
+    if rating != 'IN LINE':
+        direction = 'buff' if rating == 'TOO WEAK' else 'nerf'
+        print(f"Working out the smallest {direction}... ", end='', flush=True)
+        options = tune_spell(spell, rating, target, enemies)
+        print()
+        if not options:
+            print("  (no lever can move it that way)")
+        for i, (gap, steps, (what, old, new), per_mana, r, _) in enumerate(options, 1):
+            tag = '' if r == 'IN LINE' else f' (best it gets: {r})'
+            raising = (direction == 'buff') != (what == 'mana cost')    # a buff LOWERS the mana cost
+            print(f"  Option {i}: {'raise' if raising else 'lower'} {what}: {old} -> {new}   "
+                  f"=> net/mana {per_mana:.3f} -> {r}{tag}")
+        if spell.damage <= 0 and spell.spell_type != 'Healing':
+            print(f"  (The strength of {spell.name} is coded in dungeon_1.py, so only its mana cost is a lever here.)")
+
+    print()
+    print("IN FIGHTS (average win % at-level vs the reference enemies, class with vs without this spell):")
+    print(f"  {'Class':<10}{'Without':>9}{'With':>8}{'Change':>9}   Change per enemy: " + ", ".join(e.name for e in enemies))
+    for cls, w0, w1, per_enemy in fight_impact(spell, enemies):
+        print(f"  {cls:<10}{w0:>8.1f}%{w1:>7.1f}%{w1 - w0:>+8.1f}   " + "  ".join(f"{d:+.1f}" for d in per_enemy))
+    print("  (Classes keep their normal spell loadout from SPELL_LOADOUTS; the spell is added or removed.)")
+
+
+def report_all_spells():
+    enemies = reference_enemies()
+    print()
+    print('=' * 82)
+    print("ALL SPELLS - net value per mana against " + ", ".join(e.name for e in enemies))
+    print('=' * 82)
+    table = []
+    for name, sp in spells_by_name().items():
+        if name in UNFINISHED_SPELLS:
+            continue
+        rows, overall = spell_scores(sp, enemies)
+        table.append((name, sp, rows, overall))
+    target = median([t[3] for t in table if t[3] is not None])
+    print(f"  {'Spell':<15}{'Type':<10}{'Cost':>5}  {'Action':<13}{'Net/mana':>9}  {'vs median':>9}  {'Rating':<12}Who can learn it")
+    for name, sp, rows, overall in sorted(table, key=lambda t: -(t[3] if t[3] is not None else -99)):
+        who = ', '.join(r['cls'] + ('' if r['casts'] else ' (can\'t afford)') for r in rows)
+        if overall is None:
+            print(f"  {name:<15}{sp.spell_type:<10}{sp.mana_cost:>5}  {sp.action:<13}{'n/a':>9}  {'':>9}  {'UNUSABLE':<12}{who}")
+            continue
+        pct = f"{100 * overall / target:.0f}%" if target else ''
+        print(f"  {name:<15}{sp.spell_type:<10}{sp.mana_cost:>5}  {sp.action:<13}{overall:>9.3f}  {pct:>9}  "
+              f"{spell_rating(overall, target):<12}{who}")
+    print(f"\nMedian net value per mana: {target:.3f} (turns of fighting). 'IN LINE' = within +-{int(SPELL_BAND * 100)}% of it.")
+    print("Type a spell's name (e.g. firebolt) to see the details and a suggested fix for just that spell.")
+
+
+# =====================================================================================
+# reading spells
+# =====================================================================================
+
+SPELL_ORDER = "name, mana_cost, spell_description, spell_type  (then optional: damage, damage_type, healing, action)"
+
+
+def parse_spell(text):
+    text = text.strip().rstrip(';')
+    existing = getattr(player_data, text, None)
+    if text.isidentifier() and isinstance(existing, player_data.Spell):
+        return copy.deepcopy(existing)
+    known = spells_by_name()
+    for name, sp in known.items():                      # also accept the spell's display name: "Fire bolt"/"Firebolt"
+        if text.lower() == name.lower():
+            return copy.deepcopy(sp)
+
+    m = re.search(r'Spell\s*\((.*)\)\s*$', text, re.S)
+    inner = m.group(1) if m else text
+    if not m and inner.startswith('(') and inner.endswith(')'):
+        inner = inner[1:-1]
+    call = ast.parse(f"f({inner})", mode='eval').body
+    args = [ast.literal_eval(a) for a in call.args]
+    kwargs = {k.arg: ast.literal_eval(k.value) for k in call.keywords}
+    try:
+        return player_data.Spell(*args, **kwargs)
+    except TypeError as e:
+        raise ValueError(f"{e}\n  Expected: {SPELL_ORDER}")
+
+
+def looks_like_spell(line):
+    low = line.strip().lower()
+    if low.startswith('spell:') or re.match(r'^\s*spell\s*\(', line, re.I):
+        return True
+    if line.strip().isidentifier() and isinstance(getattr(player_data, line.strip(), None), player_data.Spell):
+        return True
+    return low in {n.lower() for n in spells_by_name()}
+
+
+def handle_spell_line(line):
+    low = line.strip().lower()
+    if low in ('spells', 'spell list', 'all spells'):
+        report_all_spells()
+        return
+    if low.startswith('spell:'):
+        line = line.strip()[6:]
+    report_spell(parse_spell(line))
+
+
 def main():
     args = sys.argv[1:]
     if args:
         try:
-            forced, text = split_type(' '.join(args))
+            line = ' '.join(args)
+            if looks_like_spell(line) or line.strip().lower() in ('spells', 'spell list', 'all spells'):
+                handle_spell_line(line)
+                return
+            forced, text = split_type(line)
             report(parse_enemy(text), forced_type=forced)
         except Exception as e:
             print(f"Couldn't read that enemy: {e}")
         return
 
-    print("Enemy tester. Paste an enemy's stats, for example:")
+    print("Balance calculator - enemies AND spells.")
+    print("SPELLS: type a spell name (e.g. firebolt) or  spells  for the whole list. A new one:  spell: ('Name', 4, 'desc', 'Offensive', 6, 'Fire')")
+    print()
+    print("ENEMIES: paste an enemy's stats, for example:")
     print("  ('Warden Boss', 2, 1, 35, 14, 2, 15, 5, boss=True, special_attack='Basic')")
     print(f"Order: {STAT_ORDER}")
     print("You can also type the name of an enemy from enemy_data.py (e.g. feral_dog). Type 'quit' to exit.")
@@ -888,7 +1497,7 @@ def main():
     print("For a swarm, set the 3rd number (amount) above 1.")
     while True:
         try:
-            line = input("\nEnemy> ").strip()
+            line = input("\nEnemy or spell> ").strip()
         except (EOFError, KeyboardInterrupt):
             print()
             break
@@ -897,10 +1506,13 @@ def main():
         if line.lower() in ('q', 'quit', 'exit'):
             break
         try:
+            if looks_like_spell(line) or line.lower() in ('spells', 'spell list', 'all spells'):
+                handle_spell_line(line)
+                continue
             forced, text = split_type(line)
             enemy = parse_enemy(text)
         except Exception as e:
-            print(f"Couldn't read that enemy: {e}")
+            print(f"Couldn't read that: {e}")
             continue
         report(enemy, forced_type=forced)
 
