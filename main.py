@@ -195,7 +195,7 @@ def inventory():
     consumables = []
     melee_weapons = []
     ranged_weapons = []
-    print("Your current iventory is as follows.")
+    print("Your current inventory is as follows.")
     for item in player_data.player_inventory:
         if item.amount > 0:
             print(item.name, ':', item.amount)
@@ -266,6 +266,37 @@ def inventory():
         else:
             return
 
+def spell_selection():
+    print("Now it's time to select the spells you want!")
+    input()
+    for spell in player_data.spellbook[player.level][player.class_name]:
+        if spell.spell_type == 'Offensive':
+            print(spell.name, '-', spell.spell_description, '-', 'Mana cost:', spell.mana_cost, '-', 'Action cost', spell.action, '-', 'Damage:', spell.damage, '-', 'Damage type:', spell.damage_type)
+        elif spell.spell_type == 'Healing':
+            print(spell.name, '-', spell.spell_description, '-', 'Mana cost:', spell.mana_cost, '-', 'Action cost', spell.action, '-', 'Healing:', spell.healing)
+        else:
+            print(spell.name, '-', spell.spell_description, '-', 'Mana cost:', spell.mana_cost, '-', 'Action cost', spell.action)
+
+    player_spells = (player.intelligence // 3) - 1
+    print()
+    print(f"You have {player.max_mana} mana.")
+    while player_spells > 0:
+        player_spell_selection = input(f"What spell/s would you like to learn? ({player_spells} spells left) ").capitalize()
+        for spell in player_data.spellbook[player.level][player.class_name]:
+            if player_spell_selection == spell.name:
+                print(f"You learn {player_spell_selection.lower()}!")
+                print()
+                player.learn_spell(spell)
+                player_data.spellbook[player.level][player.class_name].remove(spell)
+                player_spells -= 1
+
+    print("You know now the following spells!")
+    for spells_known in player.known_spells:
+        print(spells_known.name)
+
+    input()
+
+
 #intro text
 print("Hello adventurer! Welcome to this python text based RPG! Your goal is to descend a dungeon filled with enemies and puzzles to slay the monster at its heart.")
 print("This game is fairly complicated, and has many different systems which interact with each other.")
@@ -277,6 +308,7 @@ if tutorial == 'Yes':
         'Movement' : False,
         'Inventory' : False,
         'Classes' : False,
+        'Spells' : False
     }
     in_tutorial = True
 
@@ -289,7 +321,7 @@ if tutorial == 'Yes':
             else:
                 print(section)
 
-        if number == 5:
+        if number == 6:
             print("You've read all of the tutorials! You're ready to face the challenge that lies ahead, good luck!")
             in_tutorial = False
             break
@@ -311,12 +343,12 @@ if tutorial == 'Yes':
             print("Next is dexterity. This is how maneuverable you are. The higher dexterity you have, the harder you are to hit.")
             print("It's also used for ranged combat! The higher dexterity you have, the more damage your ranged attacks do.")
             print("Similarly, next up is strength. The higher strength you have, the more damage you do, and the more likely your melee attacks are to hit.")
-            print("Next is armor. Armor is how much damage gets reduced after a sucessfull attack.")
+            print("Next is armor. Armor is how much damage gets reduced after a successful attack.")
             print("For example, if you have 2 armor and an enemy hits you for 6 damage, you will only take 4 damage instead!")
             input()
             print("Next are the skills. Both melee and ranged weapons have skills attached to them. At levels 3, 5, 7, and 9 you will unlock a new ability!")
             print("Notably, at level 5 you can make an extra attack with that type of weapon, so having a melee skill level of 5 will allow you to attack twice with any melee weapon!")
-            print("Next is intelligence. Intelligence doesn't have a use yet, but it'll be used for spells when those exist")
+            print("Next is intelligence. Intelligence affects how much mana you have, which is used in spellcasting. Read about spells for more information on how they work!")
             print("Next is gold. Gold can be used to buy things at shops. You can find gold by killing enemies or while exploring the dungeon.")
             print("Last but not least is experience. You gain experience by killing enemies, solving puzzles, or solving an encounter!")
             print("If you get enough experience, you will level up! Leveling up allows you to increase nearly all of your stats.")
@@ -345,6 +377,12 @@ if tutorial == 'Yes':
             print("You should also know that most optional bosses can be skipped before entering the fight.")
             print("While you can't run from a boss, most miniboss rooms will warn you, so if you feel uneasy about something, make sure you're ready!")
             print("Most minibosses will have a campfire nearby, where you can heal. This is where you regenerate your special attack!")
+            input()
+            print("Finally are action types. In combat, actions can either take a bonus or full action.")
+            print("On your turn, you can either take an action, an action and a bonus action, or two bonus actions.")
+            print("Attacking, defending, and attempting to run are all examples of things that take a full action.")
+            print("On the other hand, using consumables, using your class action, and casting some spells are all examples of things that take a bonus action.")
+            print("Your turn will automatically end when you've used all of your available bonus and full actions.")
             print("That's all there is to know about enemies. Good luck adventurer!")
             input()
             tutorial_sections['Combat'] = True
@@ -354,12 +392,12 @@ if tutorial == 'Yes':
             print("Here's what it looks like!")
             player_map(dungeon_1.dungeon_map_1, dungeon_1.dungeon_visited_1)
             print("When you move, either up, down, left, or right, you are moving as seen from a birdseye perspective.")
-            print("In between rooms, you have the ability to select between moving, opening your map, or acessing your inventory.")
+            print("In between rooms, you have the ability to select between moving, opening your map, or accessing your inventory.")
             print("That's all there is to know about movement!")
             input()
             tutorial_sections['Movement'] = True
         elif tutorial == 'Inventory':
-            print("In between rooms, you are given the option to pick between moving, opening your map, or acessing your inventory.")
+            print("In between rooms, you are given the option to pick between moving, opening your map, or accessing your inventory.")
             print("To learn about movement and maps, read the movement tutorial.")
             print("In the inventory section, you can do three things.")
             print("1) You can use a consumable item. Currently, the only consumable is a health potion. If you drink it, it'll heal you!")
@@ -375,7 +413,7 @@ if tutorial == 'Yes':
         elif tutorial == 'Classes':
             print("At the beginning of any game, you will be able to pick between 4 different classes. They are as follows.")
             print("Barbarian. The barbarian starts with extra health, specifically 24, and it gains 12 health per level.")
-            print("It has a strength of 15, and it starts with an armor level of 2 with a melee skill level of 1.")
+            print("It has a strength of 14, and it starts with an armor level of 2 with a melee skill level of 1.")
             print("The downsides are that it has a low dexterity, at 7, and has an intelligence of only 6.")
             print("The barbarian, like all classes, has a class action. The barbarian class action is a rage effect!")
             print("The rage effect increases your strength but decreases your dexterity for 2 turns.")
@@ -410,8 +448,27 @@ if tutorial == 'Yes':
             print("All classes also have a special attack. This can change with training, but the basic one allows you to deal extra damage to any enemy.")
             print("The attack will always hit, but it can only be used once per rest. You can regenerate special attacks in campfires")
             print("That's all there is to know about classes! Good luck, and pick the class that speaks to you most!")
+            #also add mage after it's been balanced
             input()
             tutorial_sections['Classes'] = True
+        elif tutorial == 'Spells':
+            print("All classes have spells available to them, though some classes have more spells than others.")
+            print("Spells use a special resource known as mana. The amount of mana you have is the same as your intelligence.")
+            print("Each spell has a mana cost. When casting a spell, you use a certain amount of mana. The more mana it costs, the more powerful the spell is.")
+            print("Each class has its own spellbook, which are a list of spells that every class can select during character creation and on level up.")
+            print("The amount of spells you can take depends on your base intelligence. For example, Barbarians can only take one spell out of the two in their spellbook.")
+            print("On the other hand, the Mage can take 4 spells, the most of any class!")
+            input()
+            print("There are various types of spells, below are the most common.")
+            print("Offensive spells are those that deal damage. They can range from cheap but low damage spells to expensive high damage AOE damage spells.")
+            print("Two common examples are Firebolt (a cheap and low damage spell) and Fireball (an expensive and high damage spell).")
+            print("Healing spells are spells that can help you heal. They generally heal the same as health potions, but they cost mana instead.")
+            print("Finally support spells are the most varied. They can range from spells that make you harder to hit, to spells that freeze your enemies!")
+            input()
+            print("Some spells use a bonus action, while others use a full action. When selecting your spells, make sure you know which spells are full, and which are bonus actions!")
+            print("That's all you need to know about spells! Good luck using them in combat, adventurer!")
+            input()
+            tutorial_sections['Spells'] = True
         else:
             print("Please pick a valid tutorial section!")
             print("(Type leave to leave)")
@@ -419,11 +476,13 @@ if tutorial == 'Yes':
 elif tutorial == 'Dev':
     print("Welcome dev!")
     player = player_data.player_selection('dev')
+    spell_selection()
     row = int(input("Please input row (up and down) "))
     column = int(input("Please input column (left and right) "))
 
 if tutorial != 'Dev':
     player = player_data.player_selection(None)
+    spell_selection()
 
 #creates three variables required for the while loop
 in_dungeon_1 = True

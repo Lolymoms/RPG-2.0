@@ -21,7 +21,7 @@ class Player:
         self.melee_skill = melee_skill
         self.ranged_skill = ranged_skill
         self.intelligence = intelligence
-        self.mana = (intelligence * 2)
+        self.mana = intelligence
         self.max_mana = self.mana
         self.known_spells = []
         self.melee = melee
@@ -73,7 +73,8 @@ class Player:
                 "Melee skill" : "melee_skill",
                 "Ranged skill" : "ranged_skill",
                 "Dexterity" : "dexterity",
-                "Strength" : "strength"
+                "Strength" : "strength",
+                "Intelligence" : 'intelligence'
             }
             stats_selected = []
             stats_remaining = 2
@@ -120,6 +121,10 @@ class Player:
             self.max_strength = self.strength
             self.health = self.max_health
 
+            #increases max mana and resets mana to max mana
+            self.max_mana = self.intelligence
+            self.mana = self.max_mana
+
             #this prints your new stats
             print("Here are your new stats!")
             #chatGPT made this
@@ -141,6 +146,10 @@ class Player:
             self.health = self.max_health
         self.special_attack_available = True
         self.class_action_available = True
+        self.mana = self.max_mana
+
+    def learn_spell(self, spell):
+        self.known_spells.append(spell)
 
 
 class Item:
@@ -172,7 +181,7 @@ healing_potion = Item('Healing potion', 'Consumable', 0, healing=(4,8))
 player_inventory = [sword, bow, arrows, healing_potion]
 
 class Spell:
-    def __init__(self, name, mana_cost, spell_description, spell_type, damage=0, damage_type='None', healing=0):
+    def __init__(self, name, mana_cost, spell_description, spell_type, damage=0, damage_type='None', healing=0, action='Action'):
         self.name = name
         self.mana_cost = mana_cost
         self.spell_description = spell_description
@@ -180,37 +189,53 @@ class Spell:
         self.damage = damage
         self.damage_type = damage_type
         self.healing = healing
+        self.action = action
 
-    def cast_spell(self, player):
+    def cast_spell(self, player, player_spell, enemy_AC):
         if self.mana_cost <= player.mana:
             player.mana -= self.mana_cost
-            print(f"You cast {self.name}! You have {player.mana} left.")
+            print(f"You cast {self.name.lower()}! You have {player.mana} mana left.")
             if self.spell_type == 'Healing':
                 heal_amount = random.randint(self.healing[0], self.healing[1])
                 player.heal(heal_amount)
                 print(f"You heal {heal_amount} HP.")
                 return 'Healing'
-            elif self.spell_type == 'Damage':
-                return 'Spell cast'
+            elif self.damage > 0:
+                if (random.randint(1,20) + player_spell) >= enemy_AC:
+                    return 'Spell hits'
+                else:
+                    print(f"You cast {self.name.lower()} but it misses!")
+                    return 'Spell misses'
+            elif self.spell_type == 'Support':
+                return 'Support'
         else:
             print("Not enough mana!")
-            return 'Spell failed'
+            print("Spellcasting failed.")
+            input()
+            return 'Spell fails'
 
 
-minor_healing_spell = Spell('Minor Healing', 2, 'Heals 4-8 HP', 'Healing', healing=(4,8))
+minor_healing_spell = Spell('Minor healing', 2, 'Heals 4-8 HP', 'Healing', healing=(4,8), action='Bonus action')
 firebolt = Spell('Firebolt', 4, 'Shoots a small ball of fire towards your enemy', 'Offensive', 6, 'Fire')
 freeze = Spell('Freeze', 6, 'Freezes your enemy for 2 turns', 'Support', 2, 'Cold')
-poison = Spell('Poison', 5, 'Creates a cloud of poisonous gas that damages enemies', 'Offensive', 12, 'Poison')
-tornado = Spell('Tornado', 4, 'Creates a whirlpool which pulls in enemies', 'Support', 2, 'Force')
-shield = Spell('Shield', 3, 'Creates a magical shield which protects you from enemy attacks', 'Support')
-searing_smite = Spell('Searing smite', 3, 'Enchants your melee weapon, increasing its damage for 2 turns', 'Support')
+poison = Spell('Poison', 5, 'Creates a cloud of poisonous gas that damages enemies', 'Offensive', 12, 'Poison') #not currently working as intended, it should do this damage over 2-3 turns
+tornado = Spell('Tornado', 4, 'Creates a whirlpool which pulls in enemies', 'Support', 2, 'Force') #doesn't work at all
+shield = Spell('Shield', 3, 'Creates a magical shield which protects you from enemy attacks', 'Support', action='Bonus action')
+searing_smite = Spell('Searing smite', 3, 'Enchants your melee weapon, increasing its damage for 2 turns', 'Support', action='Bonus action')
+fireball = Spell('Fireball', 8, 'Shoots a large ball of fire towards your enemy, possibly damaging surrounding enemies.', 'Offensive', 16, 'Fire')
+earth_spike = Spell('Earth spike', 6, 'Creates a large spike out of the ground which damages an enemy', 'Offensive', 12, 'Force')
+arcane_blast = Spell('Arcane blast', 2, 'Creates a bolt of arcane magic which damages your enemies', 'Offensive', 3, 'Force')
 
+
+#the idea is that when there are more spells, you can pick or exchange them when you level up. Upcasting might become a thing too
 spellbook = {
-    'Barbarian' : [searing_smite],
-    'Ranger' : [shield, tornado],
-    'Rogue' : [freeze, searing_smite],
-    'Hunter' : [freeze, poison],
-    'Mage' : [minor_healing_spell, firebolt, freeze, shield] 
+    1 : {
+    'Barbarian' : [searing_smite, earth_spike],
+    'Ranger' : [shield, freeze, arcane_blast], #tornado too
+    'Rogue' : [freeze, searing_smite, poison, arcane_blast],
+    'Hunter' : [freeze, poison, shield, earth_spike],
+    'Mage' : [minor_healing_spell, firebolt, freeze, poison, shield, searing_smite, fireball, earth_spike, arcane_blast] #tornado too 
+    },
 }
 
 def player_selection(dev):
@@ -223,6 +248,8 @@ def player_selection(dev):
         input()
         print("Rogue. A sneaky, quiet, and ambush based class. If you want to sneak up to an enemy to kill it, you're a rogue.")
         input()
+        print("Mage. A smart spellcaster that uses spells to attack enemies. If you want to use your intelligence as your power, you're a mage.")
+        input()
         print("Hunter. Last but not least, the hunter. A jack of all trades, but master of none. If you don't know what to pick, you're a hunter.")
     else:
         name = 'dev'
@@ -234,10 +261,15 @@ def player_selection(dev):
             return Player('Barbarian', name, 1, 0, 0, 24, 7, 14, 2, 1, 0, 6, sword, bow, 'Basic', True, 'Basic', True)
         elif class_selection == 'Ranger':
             print("You are now a Ranger!")
+            player_inventory.remove(sword)
+            player_inventory.append(dagger)
             return Player('Ranger', name, 1, 0, 0, 18, 15, 8, 1, 0, 2, 12, sword, bow, 'Basic', True, 'Basic', True)
         elif class_selection == 'Rogue':
             print("You are now a Rogue!")
             return Player('Rogue', name, 1, 0, 0, 20, 15, 12, 0, 1, 0, 10, dagger, bow, 'Basic', True, 'Basic', True)
+        elif class_selection == 'Mage':
+            print("You are now a Mage!")
+            return Player('Mage', name, 1, 0, 0, 18, 8, 8, 2, 0, 2, 15, sword, bow, 'Basic', True, 'Basic', True)
         elif class_selection == 'Hunter':
             print("You are now a Hunter!")
             return Player('Hunter', name, 1, 0, 5, 22, 12, 10, 1, 1, 1, 12, sword, bow, 'Basic', True, 'Basic', True)
