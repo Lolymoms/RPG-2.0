@@ -191,7 +191,8 @@ class Spell:
         self.healing = healing
         self.action = action
 
-    def cast_spell(self, player, player_spell, enemy_AC):
+    #returns either 'Spell fails', 'Healing', 'Spell hits', 'Spell misses', or 'Support'
+    def cast_spell(self, player, spell_bonus, enemy_AC):
         if self.mana_cost <= player.mana:
             player.mana -= self.mana_cost
             print(f"You cast {self.name.lower()}! You have {player.mana} mana left.")
@@ -201,7 +202,7 @@ class Spell:
                 print(f"You heal {heal_amount} HP.")
                 return 'Healing'
             elif self.damage > 0:
-                if (random.randint(1,20) + player_spell) >= enemy_AC:
+                if spell_bonus >= enemy_AC:
                     return 'Spell hits'
                 else:
                     print(f"You cast {self.name.lower()} but it misses!")
@@ -261,17 +262,17 @@ def player_selection(dev):
             return Player('Barbarian', name, 1, 0, 0, 24, 7, 14, 2, 1, 0, 6, sword, bow, 'Basic', True, 'Basic', True)
         elif class_selection == 'Ranger':
             print("You are now a Ranger!")
-            player_inventory.remove(sword)
-            player_inventory.append(dagger)
             return Player('Ranger', name, 1, 0, 0, 18, 15, 8, 1, 0, 2, 12, sword, bow, 'Basic', True, 'Basic', True)
         elif class_selection == 'Rogue':
             print("You are now a Rogue!")
-            return Player('Rogue', name, 1, 0, 0, 20, 15, 12, 0, 1, 0, 10, dagger, bow, 'Basic', True, 'Basic', True)
+            player_inventory.remove(sword)
+            player_inventory.append(dagger)
+            return Player('Rogue', name, 1, 0, 0, 20, 17, 12, 1, 1, 0, 10, dagger, bow, 'Basic', True, 'Basic', True)
         elif class_selection == 'Mage':
             print("You are now a Mage!")
-            return Player('Mage', name, 1, 0, 0, 18, 8, 8, 2, 0, 2, 15, sword, bow, 'Basic', True, 'Basic', True)
+            return Player('Mage', name, 1, 0, 0, 18, 10, 8, 2, 0, 2, 15, sword, bow, 'Basic', True, 'Basic', True)
         elif class_selection == 'Hunter':
             print("You are now a Hunter!")
-            return Player('Hunter', name, 1, 0, 5, 22, 12, 10, 1, 1, 1, 12, sword, bow, 'Basic', True, 'Basic', True)
+            return Player('Hunter', name, 1, 0, 5, 22, 12, 12, 1, 1, 1, 12, sword, bow, 'Basic', True, 'Basic', True)
         else:
             print("Please select a valid class!")
