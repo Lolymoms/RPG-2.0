@@ -2,6 +2,41 @@ import random
 import time
 import player_data
 
+##player
+#attack
+    #melee
+        #light weapons have double attack
+        #skill level >= 5 have double attack
+    #ranged
+        #skill level >= 5 have double attack
+    #spell
+    #sneak attack (rogue)
+    #special attack
+#use consumable
+#class action
+#run
+    #can't run from a boss
+    #running while underleveled is easier
+#dodge/defend 
+
+
+##enemy
+#attack
+    #melee
+    #ranged
+    #special attack
+
+
+##numbers
+#AC - 10 + dex
+#melee - 10 + str + (level // 2)
+#ranged - 10 + dex + (level // 2)
+#spell - 10 + int + (level // 2)
+
+#to hit - (d20 + melee/ranged/spell) >= enemy/player AC
+#damage - ((70% damage - 130% damage) + str/dex/int) - armor
+#sneak attack - ^damage^ * 3
+
 class Combat:
     def __init__(self, player, enemy):
         self.player = player
@@ -53,6 +88,7 @@ class Combat:
             if self.player_turn_action == False and self.player_bonus_action == False:
                 player_turn = False
                 break
+
             
             player_action = self.get_player_action(f"What would you like to do? (Attack/Defend/Use consumable{'/Run' if 'Run' in player_options else ''}{'/Class action' if 'Class action' in player_options else ''}) ", player_options)
 
@@ -180,7 +216,7 @@ class Combat:
             attack_options.append('Special attack')
 
         if self.player_turn_action:
-            attack_type = self.get_player_action(f"How do you want to attack? (Melee/Ranged/Spell{'/Sneak attack' if 'Sneak attack' in attack_options else ''}{'/Special attack' if 'Special attack' in attack_options else ''})", attack_options)
+            attack_type = self.get_player_action(f"How do you want to attack? (Melee/Ranged/Spell{'/Sneak attack' if 'Sneak attack' in attack_options else ''}{'/Special attack' if 'Special attack' in attack_options else ''}) ", attack_options)
         elif self.player_bonus_action:
             attack_type = self.get_player_action("How do you want to attack? (Spell/Leave) ", ('Spell', 'Leave'))
 
@@ -535,41 +571,6 @@ class Combat:
         print(f"You have {self.player.experience} experience.")
         input()
         return 'Victory'
-
-##player
-#attack
-    #melee
-        #light weapons have double attack
-        #skill level >= 5 have double attack
-    #ranged
-        #skill level >= 5 have double attack
-    #spell
-    #sneak attack (rogue)
-    #special attack
-#use consumable
-#class action
-#run
-    #can't run from a boss
-    #running while underleveled is easier
-#dodge/defend 
-
-
-##enemy
-#attack
-    #melee
-    #ranged
-    #special attack
-
-
-##numbers
-#AC - 10 + dex
-#melee - 10 + str + (level // 2)
-#ranged - 10 + dex + (level // 2)
-#spell - 10 + int + (level // 2)
-
-#to hit - (d20 + melee/ranged/spell) >= enemy/player AC
-#damage - ((70% damage - 130% damage) + str/dex/int) - armor
-#sneak attack - ^damage^ * 3
 
 
 def encounter(player, enemy):
