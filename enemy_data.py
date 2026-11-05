@@ -36,5 +36,9 @@ class Enemy:
         self.dexterity = self.max_dexterity
         return (10 + self.stat_modifier(self.dexterity))
 
+    def set_coordinates(self, row, column):
+        self.row = row
+        self.column = column
+
 feral_dog = Enemy('Feral Dog', 1, 1, 20, 10, 1, 15, 6)
 cave_spider = Enemy('Cave Spider', 1, 1, 12, 17, 1, 14, 8)

@@ -1,6 +1,3 @@
-import random
+list = [(1, 0), (2, 0), (3, 0)]
 
-while True:
-    testing = random.randint(1,500)
-    print(testing)
-    input()
+print(list[0][0])

@@ -41,24 +41,50 @@ class Combat:
     def __init__(self, player, enemy):
         self.player = player
         self.enemy = enemy
+
+    def startup(self, room_data):
         self.defending = False
+        self.dashing = False
         self.rage_rounds = -1
         self.hunter_net = -1
         self.freeze = -1
         self.poison = -1
+        self.player_movement_speed = -1
         self.shield = False
         self.searing_smite = 0
         self.ranger_class_action = False
         self.player_turn_action = True
         self.player_bonus_action = True
-
+        self.player_movement_action = True
         self.enemy_special_attack = False
 
+        room_size = room_data['Size']
+        self.room_map = []
+        for row in range(room_size[0]):
+            column_list = []
+            for column in range(room_size[1]):
+                column_list.append('Empty')
+            self.room_map.append(column_list)
+
+        self.player_row = room_data['Player'][0]
+        self.player_column = room_data['Player'][1]
+        self.room_map[self.player_row][self.player_column] = 'Player'
+
+        self.walls = room_data['Walls']
+        for wall in self.walls:
+            self.room_map[wall[0]][wall[1]] = 'Wall'
+        for enemy in room_data['Enemies']:
+            enemy_row = room_data['Enemies'][enemy][0]
+            enemy_column = room_data['Enemies'][enemy][1]
+            self.room_map[enemy_row][enemy_column] = 'Enemy'
+            enemy.set_coordinates(enemy_row, enemy_column)
+
     def player_turn(self):
-        player_options = ['Attack', 'Run', 'Defend', 'Use consumable']
+        player_options = ['Attack', 'Run', 'Defend', 'Use consumable', 'Dash', 'Move']
         player_turn = True
         self.player_turn_action = True
         self.player_bonus_action = True
+        self.dashing = False
 
         if self.player.class_action_available:
             player_options.append('Class action')
@@ -67,7 +93,7 @@ class Combat:
 
         if self.rage_rounds > 0:
             self.rage_rounds -= 1
-            print(f"You have {self.rage_rounds} of rage left.")
+            print(f"You have {self.rage_rounds} {'rounds' if self.rage_rounds != 1 else 'round'} of rage left.")
         elif self.rage_rounds == 0:
             self.player.rage_end()
             self.rage_rounds -= 1
@@ -85,21 +111,37 @@ class Combat:
             else:
                 print(f"The {self.enemy.name} has {self.enemy.health} health remaining.")
             #if the player has no turns left, ends their turn
-            if self.player_turn_action == False and self.player_bonus_action == False:
+            if self.player_turn_action == False and self.player_bonus_action == False and self.player_movement_action == False:
                 player_turn = False
                 break
 
-            
-            player_action = self.get_player_action(f"What would you like to do? (Attack/Defend/Use consumable{'/Run' if 'Run' in player_options else ''}{'/Class action' if 'Class action' in player_options else ''}) ", player_options)
+            print("")
+            print(f"{'You have an action' if self.player_turn_action else ''}{' and a bonus action' if self.player_turn_action and self.player_bonus_action else ''}{'You have a bonus action' if self.player_bonus_action and self.player_turn_action == False else ''}.")
+            if self.player_turn_action:
+                print(f"Full action - Attack/Dash{'/Run' if 'Run' in player_options else ''}")
+            if self.player_bonus_action:
+                print(f"Bonus action - Defend/Use consumable/Attack (spells){'/Class action' if 'Class action' in player_options else ''}")
+            if self.player_movement_action:
+                print(f"Movement action - Move")
+            player_action = self.get_player_action(f"What would you like to do? ", player_options)
 
             #the function checks for player actions inside the function
             if player_action == 'Attack': #both
                 self.attack()
+
+            elif player_action == 'Move' and self.player_movement_action:
+                self.move()
+            elif player_action == 'Move' and self.player_movement_action == False:
+                print("You have no movement action!")
             
-            elif player_action == 'Run' and self.player_turn_action:
-                if self.attempt_run() == 'Run':
-                    return 'Run'
-            elif player_action == 'Run' and self.player_turn_action == False:
+            elif player_action in ('Run', 'Dash') and self.player_turn_action:
+                if player_action == 'Run':
+                    #if the player manages to run, the function will return 'Run', therefore allowing the player to escape
+                    if self.attempt_run() == 'Run':
+                        return 'Run'
+                if player_action == 'Dash':
+                    self.dash()
+            elif player_action in ('Run', 'Dash') and self.player_turn_action == False:
                 print("You have no actions remaining.")
 
             elif player_action in ('Use consumable', 'Class action', 'Defend') and self.player_bonus_action:
@@ -125,6 +167,180 @@ class Combat:
             else:
                 print("Invalid choice!")
 
+    def move(self):
+        if self.player_movement_speed == -1:
+            self.player_movement_speed = self.modifier('Player movement')
+        print("")
+        print("You prepare to move. You take in the battleield.")
+        print("Your player is represented by the @ symbol")
+        print("Enemies are represented by an x and walls are represented by a #")
+        while self.player_movement_speed > 0:
+            self.player_map()
+            print(f"You have {self.player_movement_speed} squares of movement remaining.")
+            input()
+            movement_condition = self.movement()
+            if movement_condition == 'Stop':
+                print("You stay where you are.")
+                return
+            else:
+                self.player_movement_speed -= 1
+
+        if self.player_movement_speed == 0:
+            self.player_movement_action = False
+            self.player_movement_speed -= 1
+            self.player_map()
+            print("You have no movement remaining!")
+            input()
+
+    #code was originally written by me and taken from the player_map function in main.py. It was rewritten by ChatGPT to work with the battle map
+    def player_map(self):
+        map_rows = len(self.room_map)
+        map_columns = len(self.room_map[0])
+
+        #creates LOCAL rows and columns, used for later logic
+        row_local = -1
+        column_local = 0
+
+        row_adder = 0
+        column_adder = 0
+
+        map_room_list = []
+        empty_room_list = []
+
+        seperator = ''
+        print_room = ''
+
+        #creates a list with the same size as the room and fills it with spaces
+        for number in range(map_rows):
+            empty_room_list = []
+            for number in range(map_columns):
+                empty_room_list.append(' ')
+            map_room_list.append(empty_room_list)
+
+        for room in self.room_map:
+            #sets row_local and column_local to 0
+            row_local += 1
+            column_local = 0
+            for subroom in room:
+                if self.room_map[row_local][column_local] == 'Enemy':
+                    map_room_list[row_local][column_local] = 'x'
+                elif self.room_map[row_local][column_local] == 'Wall':
+                    map_room_list[row_local][column_local] = '#'
+                elif self.room_map[row_local][column_local] == 'Player':
+                    map_room_list[row_local][column_local] = '@'
+                else:
+                    map_room_list[row_local][column_local] = ' '
+
+                column_local += 1
+
+        row_local = 0
+        column_local = 0
+
+        for number in range(0, map_rows):
+            #creates a seperator of the appropriate size
+            if seperator == '':
+                for number_again in range(map_columns):
+                    seperator += '+---'
+                    if number_again == (map_columns - 1):
+                        seperator += '+'
+
+            #prints the contents of the room
+            while row_adder == number:
+                print_room += f'| {map_room_list[row_local + row_adder][column_local + column_adder]} '
+                column_adder += 1
+                if column_adder == map_columns:
+                    column_adder = 0
+                    row_adder += 1
+                    print_room += '|'
+
+            print(seperator)
+            print(print_room)
+            print_room = ''
+            if number == (map_rows - 1):
+                print(seperator)
+
+    #similarly, the code was originally written by me and rewritten by ChatGPT to make it work with a battle map
+    def movement(self):
+
+        possible_directions = []
+        possible_directions_text = []
+        directions = {
+            1: (-1, 0),
+            2: (0, -1),
+            3: (1, 0),
+            4: (0, 1)
+        }
+        text_directions = {
+            1: 'Up',
+            2: 'Left',
+            3: 'Down',
+            4: 'Right'
+        }
+
+        #figures out how big the map is
+        max_row = len(self.room_map) - 1
+        max_column = len(self.room_map[0]) - 1
+        #1 is up, 2 is left, 3 is down, 4 is right
+
+        #finds out which directions are valid for the player's position
+        for direction, (row_change, column_change) in directions.items():
+            local_row = self.player_row
+            local_column = self.player_column
+
+            local_row += row_change
+            local_column += column_change
+
+            #makes sure the player doesn't walk into the border of the map
+            if local_row > max_row or local_row < 0:
+                pass
+            elif local_column > max_column or local_column < 0:
+                pass
+            #makes sure the player doesn't walk into a map wall or enemy
+            elif self.room_map[local_row][local_column] == 'Wall':
+                pass
+            elif self.room_map[local_row][local_column] == 'Enemy':
+                pass
+            else:
+                possible_directions.append(direction)
+
+        #adds every direction as text to a list, and prints them
+        for direction, text in text_directions.items():
+            if direction in possible_directions:
+                possible_directions_text.append(text)
+                print(f"{direction}) {text}")
+
+        print("(Type stop to stop moving)")
+
+        #takes an input from the player to decide where to go, works with text and number
+        while True:
+            player_direction = input("Where do you go? ")
+            try:
+                player_direction = int(player_direction)
+                if player_direction in possible_directions:
+                    break
+                else:
+                    print("Please pick a valid direction! (Type stop to stop moving)")
+            except ValueError:
+                player_direction = player_direction.capitalize()
+                if player_direction == 'Stop':
+                    return 'Stop'
+                elif player_direction in possible_directions_text:
+                    for direction, text in text_directions.items():
+                        if player_direction == text:
+                            player_direction = direction
+                            break
+                    break
+                else:
+                    print("Please pick a valid direction! (Type stop to stop moving)")
+
+        self.room_map[self.player_row][self.player_column] = 'Empty'
+        for direction, (row_change, column_change) in directions.items():
+            if direction == player_direction:
+                self.player_row += row_change
+                self.player_column += column_change
+                self.room_map[self.player_row][self.player_column] = 'Player'
+                return
+
     def attempt_run(self):
         self.player_turn_action = False
         player_bonus = (self.player.stat_modifier(self.player.dexterity) + random.randint(1, 10))
@@ -142,6 +358,7 @@ class Combat:
     def defend(self):
         self.player_bonus_action = False
         print("You defend yourself! You will have a chance to dodge the enemy's next attack.")
+        input()
         self.defending = True
 
     def use_consumable(self):
@@ -351,7 +568,7 @@ class Combat:
         print(f"Current mana - {self.player.mana}")
         print("")
         for spell in self.player.known_spells:
-            print(spell.name, '-', spell.spell_type, '-', 'Mana:', spell.mana_cost)
+            print(spell.name, '-', spell.spell_type, f'- {spell.damage} damage - ' if spell.spell_type == 'Offensive' else '-', 'Mana:', spell.mana_cost, '-', 'Action cost:', spell.action)
         print("")
         attempting_cast = True
         while attempting_cast:
@@ -418,6 +635,11 @@ class Combat:
             self.poison = 3
             return
 
+    def dash(self):
+        self.player_turn_action = False
+        self.dashing = True
+        print("Your movement speed is effectively doubled for this turn!")
+
     def modifier(self, type):
         if type == 'Melee':
             return (random.randint(1,20) + (self.player.stat_modifier(self.player.strength)) + (self.player.level // 2))
@@ -427,6 +649,12 @@ class Combat:
             return (random.randint(1,20) + (self.player.stat_modifier(self.player.intelligence)) + (self.player.level // 2))
         elif type == 'Player ac':
             return (10 + (self.player.stat_modifier(self.player.dexterity)))
+        elif type == 'Player movement':
+            if self.dashing:
+                self.dashing = False
+                return max(2, (self.player.stat_modifier(self.player.dexterity) + self.player.stat_modifier(self.player.strength)))
+            else:
+                return max(2, ((self.player.stat_modifier(self.player.dexterity) + self.player.stat_modifier(self.player.strength)) // 2))
         elif type == 'Enemy ac':
             return (10 + (self.enemy.stat_modifier(self.enemy.dexterity)))
         elif type == 'Enemy melee':
@@ -573,8 +801,9 @@ class Combat:
         return 'Victory'
 
 
-def encounter(player, enemy):
+def encounter(player, enemy, room_data):
     fight = Combat(player, enemy)
+    fight.startup(room_data)
     fight_condition = None
     skip_enemy_turn = False
     print(f"You are fighting a {enemy.name.lower()}! It's your turn.")

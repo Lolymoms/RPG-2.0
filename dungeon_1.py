@@ -21,9 +21,18 @@ def enemy_room(player, row, column):
     #     print("You walk further into the room and see a group of goblins!")
     #     action = encounter(player) #insert goblins here
     #     #insert goblins function here
-    if number <= 40:
+    #if number <= 40:
+    if number != 1000000:
         print("You walk further into the room and see a feral dog!")
-        action = combat.encounter(player, copy.deepcopy(enemy_data.feral_dog))
+        room_data = {
+            'Player' : (0, 0),
+            'Size' : (5, 5),
+            'Walls' : [(1, 0), (2, 0), (3, 0)],
+            'Enemies': {
+                copy.deepcopy(enemy_data.feral_dog) : (4, 0),
+                }
+        }
+        action = combat.encounter(player, copy.deepcopy(enemy_data.feral_dog), room_data)
     else:
         print("You walk further into the room and see a cave spider!")
         action = combat.encounter(player, copy.deepcopy(enemy_data.cave_spider))

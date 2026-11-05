@@ -218,7 +218,7 @@ class Spell:
 
 minor_healing_spell = Spell('Minor healing', 2, 'Heals 4-8 HP', 'Healing', healing=(4,8), action='Bonus action')
 firebolt = Spell('Firebolt', 4, 'Shoots a small ball of fire towards your enemy', 'Offensive', 6, 'Fire')
-freeze = Spell('Freeze', 6, 'Freezes your enemy for 2 turns', 'Support', 2, 'Cold')
+freeze = Spell('Freeze', 6, 'Freezes your enemy for 2 turns', 'Support')
 poison = Spell('Poison', 5, 'Creates a cloud of poisonous gas that damages enemies', 'Offensive', 12, 'Poison') #not currently working as intended, it should do this damage over 2-3 turns
 tornado = Spell('Tornado', 4, 'Creates a whirlpool which pulls in enemies', 'Support', 2, 'Force') #doesn't work at all
 shield = Spell('Shield', 3, 'Creates a magical shield which protects you from enemy attacks', 'Support', action='Bonus action')

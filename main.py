@@ -321,7 +321,7 @@ if tutorial == 'Yes':
             else:
                 print(section)
 
-        if number == 6:
+        if number == len(tutorial_sections):
             print("You've read all of the tutorials! You're ready to face the challenge that lies ahead, good luck!")
             in_tutorial = False
             break
@@ -472,7 +472,6 @@ if tutorial == 'Yes':
         else:
             print("Please pick a valid tutorial section!")
             print("(Type leave to leave)")
-            input()
 elif tutorial == 'Dev':
     print("Welcome dev!")
     player = player_data.player_selection('dev')
