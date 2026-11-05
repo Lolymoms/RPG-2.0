@@ -181,11 +181,12 @@ healing_potion = Item('Healing potion', 'Consumable', 0, healing=(4,8))
 player_inventory = [sword, bow, arrows, healing_potion]
 
 class Spell:
-    def __init__(self, name, mana_cost, spell_description, spell_type, damage=0, damage_type='None', healing=0, action='Action'):
+    def __init__(self, name, mana_cost, spell_description, spell_type, range=0, damage=0, damage_type='None', healing=0, action='Action'):
         self.name = name
         self.mana_cost = mana_cost
         self.spell_description = spell_description
         self.spell_type = spell_type
+        self.range = range
         self.damage = damage
         self.damage_type = damage_type
         self.healing = healing
@@ -217,15 +218,15 @@ class Spell:
 
 
 minor_healing_spell = Spell('Minor healing', 2, 'Heals 4-8 HP', 'Healing', healing=(4,8), action='Bonus action')
-firebolt = Spell('Firebolt', 4, 'Shoots a small ball of fire towards your enemy', 'Offensive', 6, 'Fire')
+firebolt = Spell('Firebolt', 4, 'Shoots a small ball of fire towards your enemy', 'Offensive', 5, 6, 'Fire')
 freeze = Spell('Freeze', 6, 'Freezes your enemy for 2 turns', 'Support')
-poison = Spell('Poison', 5, 'Creates a cloud of poisonous gas that damages enemies', 'Offensive', 12, 'Poison') #not currently working as intended, it should do this damage over 2-3 turns
+poison = Spell('Poison', 5, 'Creates a cloud of poisonous gas that damages enemies', 'Offensive', 6, 12, 'Poison')
 tornado = Spell('Tornado', 4, 'Creates a whirlpool which pulls in enemies', 'Support', 2, 'Force') #doesn't work at all
 shield = Spell('Shield', 3, 'Creates a magical shield which protects you from enemy attacks', 'Support', action='Bonus action')
 searing_smite = Spell('Searing smite', 3, 'Enchants your melee weapon, increasing its damage for 2 turns', 'Support', action='Bonus action')
-fireball = Spell('Fireball', 8, 'Shoots a large ball of fire towards your enemy, possibly damaging surrounding enemies.', 'Offensive', 16, 'Fire')
-earth_spike = Spell('Earth spike', 6, 'Creates a large spike out of the ground which damages an enemy', 'Offensive', 12, 'Force')
-arcane_blast = Spell('Arcane blast', 2, 'Creates a bolt of arcane magic which damages your enemies', 'Offensive', 3, 'Force')
+fireball = Spell('Fireball', 8, 'Shoots a large ball of fire towards your enemy, possibly damaging surrounding enemies.', 'Offensive', 4, 16, 'Fire')
+earth_spike = Spell('Earth spike', 6, 'Creates a large spike out of the ground which damages an enemy', 'Offensive', 5, 12, 'Force')
+arcane_blast = Spell('Arcane blast', 2, 'Creates a bolt of arcane magic which damages your enemies', 'Offensive', 5, 3, 'Force')
 
 
 #the idea is that when there are more spells, you can pick or exchange them when you level up. Upcasting might become a thing too

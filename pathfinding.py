@@ -1,6 +1,6 @@
 #returns a list of directions, as strings, for the enemy to follow to reach the player
-def enemy_movement(room, start_pos, end_pos, type, available_movement):
-    path = pathfinding(room, start_pos, end_pos, type)
+def enemy_movement(room, start_pos, end_pos, available_movement):
+    path = pathfinding(room, start_pos, end_pos)
     if path == 'No path':
         return []
     directions = {
@@ -26,46 +26,9 @@ def enemy_movement(room, start_pos, end_pos, type, available_movement):
 
     return direction_list
 
+#checks if an attack can hit and if the range is sufficient
 def raytracing(room, start_pos, end_pos, attack_range):
-    point_1_x = start_pos[0]
-    point_1_y = start_pos[1]
-    point_2_x = end_pos[0]
-    point_2_y = end_pos[1]
-
-    #initial calculations
-    change_x = abs(point_1_x - point_2_x)
-    change_y = abs(point_1_y - point_2_y)
-    if point_1_x < point_2_x:
-        horizontal_change = 1
-    else:
-        horizontal_change = -1
-    if point_1_y < point_2_y:
-        vertical_change = 1
-    else:
-        vertical_change = -1
-    error = change_x - change_y
-    coordinates = []
-    temp_x = point_1_x
-    temp_y = point_1_y
-
-    while True:
-        if temp_x == point_2_x and temp_y == point_2_y:
-            break
-
-        doubled_error = error * 2
-
-        #written by ChatGPT
-        # Check whether we should move horizontally
-        if doubled_error > -change_y:
-            error -= change_y
-            temp_x += horizontal_change
-
-        # Check whether we should move vertically
-        if doubled_error < change_x:
-            error += change_x
-            temp_y += vertical_change
-
-        coordinates.append((temp_x, temp_y))
+    coordinates = line_algorithm(start_pos, end_pos)
 
     if len(coordinates) > attack_range:
         return 'Out of range'
@@ -77,11 +40,17 @@ def raytracing(room, start_pos, end_pos, attack_range):
             else:
                 return 'Hits wall'
 
+#returns the approx distance between two points
+def distance(start_pos, end_pos):
+    coordinates = line_algorithm(start_pos, end_pos)
+    effective_distance = len(coordinates)
+    return effective_distance
+
 
 #the program will return a list of tuples which include coordinates for the shortest path to a goal
 #room requires a map where passable terrain is marked by 'Empty'
 #start_pos and end_pos require tuples
-def pathfinding(room, start_pos, end_pos, type=None):
+def pathfinding(room, start_pos, end_pos):
     bfs_room = []
 
     #creates a nested list with 1s and 0s. 1 means impassable terrain, 0 means passable terrain
@@ -133,3 +102,45 @@ def pathfinding(room, start_pos, end_pos, type=None):
             base_location = queue.pop(0)
         else:
             return 'No path'
+
+#finds a line between two points, and returns all of the coordinates
+def line_algorithm(start_pos, end_pos):
+    point_1_x = start_pos[0]
+    point_1_y = start_pos[1]
+    point_2_x = end_pos[0]
+    point_2_y = end_pos[1]
+
+    #initial calculations
+    change_x = abs(point_1_x - point_2_x)
+    change_y = abs(point_1_y - point_2_y)
+    if point_1_x < point_2_x:
+        horizontal_change = 1
+    else:
+        horizontal_change = -1
+    if point_1_y < point_2_y:
+        vertical_change = 1
+    else:
+        vertical_change = -1
+    error = change_x - change_y
+    coordinates = []
+    temp_x = point_1_x
+    temp_y = point_1_y
+
+    while True:
+        if temp_x == point_2_x and temp_y == point_2_y:
+            return coordinates
+
+        doubled_error = error * 2
+
+        #written by ChatGPT
+        # Check whether we should move horizontally
+        if doubled_error > -change_y:
+            error -= change_y
+            temp_x += horizontal_change
+
+        # Check whether we should move vertically
+        if doubled_error < change_x:
+            error += change_x
+            temp_y += vertical_change
+
+        coordinates.append((temp_x, temp_y))

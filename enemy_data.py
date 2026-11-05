@@ -1,5 +1,5 @@
 class Enemy:
-    def __init__(self, name, level, amount, health, dexterity, armor, strength, melee, ranged=0, vulnerable='None', resistant='None', boss=False, special_attack='None'):
+    def __init__(self, name, level, amount, health, dexterity, armor, strength, melee, ranged=0, ranged_attack_range=0, vulnerable='None', resistant='None', boss=False, special_attack='None'):
         self.name = name
         self.level = level
         self.amount = amount
@@ -10,6 +10,7 @@ class Enemy:
         self.strength = strength
         self.melee = melee
         self.ranged = ranged
+        self.ranged_attack_range = ranged_attack_range
         self.vulnerable = vulnerable
         self.resistant = resistant
         self.boss = boss
@@ -40,5 +41,16 @@ class Enemy:
         self.row = row
         self.column = column
 
+    def move(self, direction):
+        directions = {
+            'Up' : (1, 0),
+            'Down' : (-1, 0),
+            'Right' : (0, 1),
+            'Left' : (0, -1)
+        }
+        self.row += directions[direction][0]
+        self.column += directions[directions][1]
+
 feral_dog = Enemy('Feral Dog', 1, 1, 20, 10, 1, 15, 6)
 cave_spider = Enemy('Cave Spider', 1, 1, 12, 17, 1, 14, 8)
+skeleton = Enemy('Skeleton', 1, 1, 12, 10, 2, 13, 2, 8, 4)

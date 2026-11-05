@@ -1,6 +1,7 @@
 import random
 import time
 import player_data
+import pathfinding
 
 ##player
 #attack
@@ -57,6 +58,7 @@ class Combat:
         self.player_bonus_action = True
         self.player_movement_action = True
         self.enemy_special_attack = False
+        self.enemy_moved = False
 
         room_size = room_data['Size']
         self.room_map = []
@@ -476,6 +478,14 @@ class Combat:
         if self.player.melee.attack_type == 'Light':
             melee_bonus_turns += 1
 
+        if attack_type in ('Ranged', 'Spell'):
+            attack_status = pathfinding.raytracing(self.room_map, (self.player_row, self.player_column), (self.enemy.row, self.enemy.column), spell_cast.range)
+        elif attack_type == 'Melee':
+            attack_status = pathfinding.raytracing(self.room_map, (self.player_row, self.player_column), (self.enemy.row, self.enemy.column), 1)
+
+        if attack_type in ('Out of range', 'Hits wall'):
+            print("Your attack ", "can't reach the enemy," if attack_type == 'Out of range' else 'hits a wall.')
+            return
         player_attacking_turn = True
         while player_attacking_turn:
             if self.enemy.health <= 0:
@@ -545,6 +555,10 @@ class Combat:
                 player_attacking_turn = False
 
     def special_attack(self):
+        attack_status = pathfinding.raytracing(self.room_map, (self.player_row, self.player_column), (self.enemy.row, self.enemy.column), 1)
+        if attack_status == 'Out of range':
+            print(f"You can't reach the {self.enemy.name}")
+            return
         self.player_turn_action = False
         score = self.reaction_time('Special attack')
         if score <= 35:
@@ -657,6 +671,9 @@ class Combat:
                 return max(2, ((self.player.stat_modifier(self.player.dexterity) + self.player.stat_modifier(self.player.strength)) // 2))
         elif type == 'Enemy ac':
             return (10 + (self.enemy.stat_modifier(self.enemy.dexterity)))
+        elif type == 'Enemy movement':
+            self.enemy_moved = True
+            return max(2, ((self.enemy.stat_modifier(self.enemy.dexterity) + self.enemy.stat_modifier(self.enemy.strength)) // 2))
         elif type == 'Enemy melee':
             return (random.randint(1,20) + (self.enemy.stat_modifier(self.enemy.strength)) + (self.enemy.level // 2))
         elif type == 'Enemy ranged':
@@ -693,6 +710,7 @@ class Combat:
 
     def enemy_turn(self):
         enemy_action = None
+        self.enemy_moved = False
         if self.poison > 0:
             self.enemy.take_damage(4)
             self.poison -= 1
@@ -729,19 +747,32 @@ class Combat:
         else:
             enemy_action = self.enemy_action_determiner()
 
-        if enemy_action == 'Melee attack':
-            weapon_damage = self.enemy.melee
-            modifier = self.enemy.stat_modifier(self.enemy.strength)
-            to_hit = self.modifier('Enemy melee')
-        elif enemy_action == 'Ranged attack':
-            weapon_damage = self.enemy.ranged
-            modifier = self.enemy.stat_modifier(self.enemy.dexterity)
-            to_hit = self.modifier('Enemy ranged')
-        elif enemy_action == 'Special attack':
-            self.enemy_special_attack = True
-            print("The enemy is preparing a special attack!")
-            input()
-            return
+        while True:
+            attack_status = self.enemy_hit_attempt(enemy_action, self.enemy.ranged_attack_range)
+
+            if attack_status in ('Out of range', 'Hits wall') and self.enemy_moved == False:
+                enemy_path = pathfinding.enemy_movement(self.room_map, (self.enemy.row, self.enemy.column), (self.player_row, self.player_column), self.modifier('Enemy movement'))
+                for direction in enemy_path:
+                    self.enemy.move(direction)
+                print("The enemy moves.")
+            elif attack_status in ('Out of range', 'Hits wall') and self.enemy_moved:
+                return
+            elif attack_status == 'Hits enemy':
+                if enemy_action == 'Melee attack':
+                    weapon_damage = self.enemy.melee
+                    modifier = self.enemy.stat_modifier(self.enemy.strength)
+                    to_hit = self.modifier('Enemy melee')
+                    break
+                elif enemy_action == 'Ranged attack':
+                    weapon_damage = self.enemy.ranged
+                    modifier = self.enemy.stat_modifier(self.enemy.dexterity)
+                    to_hit = self.modifier('Enemy ranged')
+                    break
+                elif enemy_action == 'Special attack':
+                    self.enemy_special_attack = True
+                    print("The enemy is preparing a special attack!")
+                    input()
+                    return
 
         player_ac = self.modifier('Player ac')
 
@@ -785,6 +816,12 @@ class Combat:
             return 'Ranged attack'
         else:
             return 'Melee attack'
+
+    def enemy_hit_attempt(self, type, attack_range):
+        if type == 'Melee attack':
+            return pathfinding.raytracing(self.room_map, (self.enemy.row, self.enemy.column), (self.player_row, self.player_column), 1)
+        elif type == 'Ranged attack':
+            return pathfinding.raytracing(self.room_map, (self.enemy.row, self.enemy.column), (self.player_row, self.player_column), attack_range)
 
     def enemy_death(self):
         print(f"The {self.enemy.name} has died!")
