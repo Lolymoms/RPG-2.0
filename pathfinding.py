@@ -4,14 +4,14 @@ def enemy_movement(room, start_pos, end_pos, available_movement):
     if path == 'No path':
         return []
     directions = {
-        'Up' : (1, 0),
-        'Down' : (-1, 0),
+        'Up' : (-1, 0),
+        'Down' : (1, 0),
         'Right' : (0, 1),
         'Left' : (0, -1)
     }
     direction_list = []
     for movement in range(available_movement):
-        if movement == (len(path) - 1):
+        if movement == (len(path) - 2):
             break
         target_coordinate = path[movement + 1]
         for direction in directions:
@@ -21,13 +21,17 @@ def enemy_movement(room, start_pos, end_pos, available_movement):
             test_coordinate[0] += row_change
             test_coordinate[1] += column_change
 
-            if test_coordinate == target_coordinate:
+            if test_coordinate[0] == target_coordinate[0] and test_coordinate[1] == target_coordinate[1]:
                 direction_list.append(direction)
 
     return direction_list
 
 #checks if an attack can hit and if the range is sufficient
-def raytracing(room, start_pos, end_pos, attack_range):
+def raytracing(room, start_pos, end_pos, attack_range, type='Player'):
+    if type == 'Player':
+        target_string = 'Enemy'
+    else:
+        target_string = 'Player'
     coordinates = line_algorithm(start_pos, end_pos)
 
     if len(coordinates) > attack_range:
@@ -35,7 +39,7 @@ def raytracing(room, start_pos, end_pos, attack_range):
 
     for coordinate in coordinates:
         if room[coordinate[0]][coordinate[1]] != 'Empty':
-            if room[coordinate[0]][coordinate[1]] == 'Enemy':
+            if room[coordinate[0]][coordinate[1]] == target_string:
                 return 'Hits enemy'
             else:
                 return 'Hits wall'
@@ -50,6 +54,7 @@ def distance(start_pos, end_pos):
 #the program will return a list of tuples which include coordinates for the shortest path to a goal
 #room requires a map where passable terrain is marked by 'Empty'
 #start_pos and end_pos require tuples
+#the function is a version of Breadth First Search (BFS)
 def pathfinding(room, start_pos, end_pos):
     bfs_room = []
 
@@ -58,7 +63,7 @@ def pathfinding(room, start_pos, end_pos):
     for row in room:
         bfs_column = []
         for column in row:
-            if column == 'Empty':
+            if column in ('Empty', 'Player'):
                 bfs_column.append(0)
             else:
                 bfs_column.append(1)
@@ -66,8 +71,8 @@ def pathfinding(room, start_pos, end_pos):
 
     #r is up down, c is left right (r, c)
     directions = {
-        'Up' : (1, 0),
-        'Down' : (-1, 0),
+        'Up' : (-1, 0),
+        'Down' : (1, 0),
         'Right' : (0, 1),
         'Left' : (0, -1)
     }
@@ -100,10 +105,12 @@ def pathfinding(room, start_pos, end_pos):
             return complete_path
         elif len(queue) > 0:
             base_location = queue.pop(0)
+            base_location = list(base_location)
         else:
             return 'No path'
 
 #finds a line between two points, and returns all of the coordinates
+#this function is a version of Bresenham's line drawing algorithm
 def line_algorithm(start_pos, end_pos):
     point_1_x = start_pos[0]
     point_1_y = start_pos[1]

@@ -21,21 +21,30 @@ def enemy_room(player, row, column):
     #     print("You walk further into the room and see a group of goblins!")
     #     action = encounter(player) #insert goblins here
     #     #insert goblins function here
-    #if number <= 40:
-    if number != 1000000:
+    if number <= 40:
         print("You walk further into the room and see a feral dog!")
-        room_data = {
+        dog_1 = copy.deepcopy(enemy_data.feral_dog)
+        room_data_dog = {
             'Player' : (0, 0),
-            'Size' : (5, 5),
-            'Walls' : [(1, 0), (2, 0), (3, 0)],
+            'Size' : (4, 4),
+            'Walls' : [(1, 2), (2, 1)],
             'Enemies': {
-                copy.deepcopy(enemy_data.feral_dog) : (4, 0),
-                }
+                dog_1 : (3, 3),
+            }
         }
-        action = combat.encounter(player, copy.deepcopy(enemy_data.feral_dog), room_data)
+        action = combat.encounter(player, dog_1, room_data_dog)
     else:
         print("You walk further into the room and see a cave spider!")
-        action = combat.encounter(player, copy.deepcopy(enemy_data.cave_spider))
+        spider_1 = copy.deepcopy(enemy_data.cave_spider)
+        room_data_spider = {
+            'Player' : (0, 0),
+            'Size' : (4, 5),
+            'Walls' : [(1, 2), (2, 1), (1, 3)],
+            'Enemies': {
+                spider_1 : (3, 4),
+            }
+        }
+        action = combat.encounter(player, spider_1, room_data_spider)
 
     if action == 'Victory':
         dungeon_action_1[row][column] = True
@@ -52,7 +61,6 @@ def chest_room(player, row, column):
         dungeon_action_1[row][column] = True
         #generates a random number to determine reward/mimic
         randomnum = random.randint(1,10)
-        #if the random number is 4 or below, it's 5 gold
         if chest_counter == 1:
             print("You open the chest and find a health potion!")
             player_data.healing_potion.add_item(1)
@@ -60,13 +68,14 @@ def chest_room(player, row, column):
             input()
             chest_counter += 1
         else:
+            #if the random number is below 7, it's 5 gold
             if randomnum < 7:
                 print("You open the chest and find some gold!")
                 print("+5 gold")
                 player.add_gold(5)
                 print(f"You have {player.gold} gold.")
                 input()
-            #if the random number is 5-9, it's a mimic
+            #if the random number is 7-9, it's a mimic
             elif randomnum >= 7 and randomnum <= 9:
                 print("You open the chest and are attacked by a mimic!")
                 damage = max(0, (4 - player.armor))
@@ -129,8 +138,16 @@ def miniboss_1(player, row, column):
     if action == 'Yes':
         dungeon_action_1[row][column] = True
         from enemy_data import Enemy
-        gelatinous_cube = Enemy("Gelatinous Cube", 1, 1, 40, 6, 3, 11, 6, 0, 'Slashing', 'None', True, 'Basic')
-        combat.encounter(player, gelatinous_cube)
+        gelatinous_cube = Enemy("Gelatinous Cube", 1, 1, 40, 6, 3, 11, 6, 0, 0, 'Slashing', 'None', True, 'Basic')
+        room_data_cube = {
+            'Player' : (0, 0),
+            'Size' : (5, 3),
+            'Walls' : [],
+            'Enemies': {
+                gelatinous_cube : (4, 2),
+            }
+        }
+        combat.encounter(player, gelatinous_cube, room_data_cube)
     else:
         print("You decide to come back another time. You return to the room you came from.")
         return 'Miniboss'
@@ -229,7 +246,15 @@ def boss_1(player, row, column):
     print("You prepare yourself, and continue...")
     from enemy_data import Enemy
     warden_boss = Enemy('Warden Boss', 2, 1, 35, 14, 2, 15, 5, boss=True, special_attack='Basic')
-    combat.encounter(player, warden_boss)
+    room_data_warden = {
+        'Player' : (0, 0),
+        'Size' : (6, 6),
+        'Walls' : [(2, 1), (2, 2), (2, 3), (2, 4), (1, 4)],
+        'Enemies': {
+            warden_boss : (3, 4),
+        }
+    }
+    combat.encounter(player, warden_boss, room_data_warden)
     return 'Boss'
 
 def staircase_1(player, row, column):

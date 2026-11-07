@@ -5,7 +5,7 @@ level_up_experience = 100
 
 #creates player data
 class Player:
-    def __init__(self, class_name, name, level, experience, gold, health, dexterity, strength, armor, melee_skill, ranged_skill, intelligence, melee, ranged, special_attack, special_attack_available, class_action, class_action_available):
+    def __init__(self, class_name, name, level, experience, gold, health, dexterity, strength, armor, melee_skill, ranged_skill, intelligence, melee, ranged, ranged_ammo, special_attack, special_attack_available, class_action, class_action_available):
         self.class_name = class_name
         self.name = name
         self.level = level
@@ -26,6 +26,7 @@ class Player:
         self.known_spells = []
         self.melee = melee
         self.ranged = ranged
+        self.ranged_ammo = ranged_ammo
         self.special_attack = special_attack
         self.special_attack_available = special_attack_available
         self.class_action = class_action
@@ -153,10 +154,11 @@ class Player:
 
 
 class Item:
-    def __init__(self, name, type, amount=1, healing=0, damage=0, damage_type='None', attack_type='Medium'):
+    def __init__(self, name, type, amount=1, healing=0, damage=0, attack_range=1, damage_type='None', attack_type='Medium'):
         self.name = name
         self.type = type
         self.damage = damage
+        self.attack_range = attack_range
         self.damage_type = damage_type
         self.attack_type = attack_type
         self.amount = amount
@@ -174,14 +176,14 @@ class Item:
 
 sword = Item('Sword', 'Melee', damage=6, damage_type='Slashing')
 dagger = Item('Dagger', 'Melee', damage=4, damage_type='Slashing', attack_type='Light')
-bow = Item('Bow', 'Ranged', damage=8, damage_type='Piercing')
+bow = Item('Bow', 'Ranged', damage=8, attack_range=5, damage_type='Piercing')
 arrows = Item('Arrows', 'Usable', 20)
 healing_potion = Item('Healing potion', 'Consumable', 0, healing=(4,8))
 
 player_inventory = [sword, bow, arrows, healing_potion]
 
 class Spell:
-    def __init__(self, name, mana_cost, spell_description, spell_type, range=0, damage=0, damage_type='None', healing=0, action='Action'):
+    def __init__(self, name, mana_cost, spell_description, spell_type, range=1, damage=0, damage_type='None', healing=0, action='Action'):
         self.name = name
         self.mana_cost = mana_cost
         self.spell_description = spell_description
@@ -221,9 +223,8 @@ minor_healing_spell = Spell('Minor healing', 2, 'Heals 4-8 HP', 'Healing', heali
 firebolt = Spell('Firebolt', 4, 'Shoots a small ball of fire towards your enemy', 'Offensive', 5, 6, 'Fire')
 freeze = Spell('Freeze', 6, 'Freezes your enemy for 2 turns', 'Support')
 poison = Spell('Poison', 5, 'Creates a cloud of poisonous gas that damages enemies', 'Offensive', 6, 12, 'Poison')
-tornado = Spell('Tornado', 4, 'Creates a whirlpool which pulls in enemies', 'Support', 2, 'Force') #doesn't work at all
 shield = Spell('Shield', 3, 'Creates a magical shield which protects you from enemy attacks', 'Support', action='Bonus action')
-searing_smite = Spell('Searing smite', 3, 'Enchants your melee weapon, increasing its damage for 2 turns', 'Support', action='Bonus action')
+searing_smite = Spell('Searing smite', 3, 'Enchants your melee weapon, increasing its damage for 2 hits', 'Support', action='Bonus action')
 fireball = Spell('Fireball', 8, 'Shoots a large ball of fire towards your enemy, possibly damaging surrounding enemies.', 'Offensive', 4, 16, 'Fire')
 earth_spike = Spell('Earth spike', 6, 'Creates a large spike out of the ground which damages an enemy', 'Offensive', 5, 12, 'Force')
 arcane_blast = Spell('Arcane blast', 2, 'Creates a bolt of arcane magic which damages your enemies', 'Offensive', 5, 3, 'Force')
@@ -233,10 +234,10 @@ arcane_blast = Spell('Arcane blast', 2, 'Creates a bolt of arcane magic which da
 spellbook = {
     1 : {
     'Barbarian' : [searing_smite, earth_spike],
-    'Ranger' : [shield, freeze, arcane_blast], #tornado too
+    'Ranger' : [shield, freeze, arcane_blast],
     'Rogue' : [freeze, searing_smite, poison, arcane_blast],
     'Hunter' : [freeze, poison, shield, earth_spike],
-    'Mage' : [minor_healing_spell, firebolt, freeze, poison, shield, searing_smite, fireball, earth_spike, arcane_blast] #tornado too 
+    'Mage' : [minor_healing_spell, firebolt, freeze, poison, shield, searing_smite, fireball, earth_spike, arcane_blast]
     },
 }
 
@@ -260,20 +261,20 @@ def player_selection(dev):
         class_selection = input("What would you like to be? ").capitalize()
         if class_selection == 'Barbarian':
             print("You are now a Barbarian!")
-            return Player('Barbarian', name, 1, 0, 0, 24, 7, 14, 2, 1, 0, 6, sword, bow, 'Basic', True, 'Basic', True)
+            return Player('Barbarian', name, 1, 0, 0, 24, 7, 14, 2, 1, 0, 6, sword, bow, arrows, 'Basic', True, 'Basic', True)
         elif class_selection == 'Ranger':
             print("You are now a Ranger!")
-            return Player('Ranger', name, 1, 0, 0, 18, 15, 8, 1, 0, 2, 12, sword, bow, 'Basic', True, 'Basic', True)
+            return Player('Ranger', name, 1, 0, 0, 18, 15, 8, 1, 0, 2, 12, sword, bow, arrows, 'Basic', True, 'Basic', True)
         elif class_selection == 'Rogue':
             print("You are now a Rogue!")
             player_inventory.remove(sword)
             player_inventory.append(dagger)
-            return Player('Rogue', name, 1, 0, 0, 20, 17, 12, 1, 1, 0, 10, dagger, bow, 'Basic', True, 'Basic', True)
+            return Player('Rogue', name, 1, 0, 0, 20, 17, 12, 1, 1, 0, 10, dagger, bow, arrows, 'Basic', True, 'Basic', True)
         elif class_selection == 'Mage':
             print("You are now a Mage!")
-            return Player('Mage', name, 1, 0, 0, 18, 10, 8, 2, 0, 2, 15, sword, bow, 'Basic', True, 'Basic', True)
+            return Player('Mage', name, 1, 0, 0, 18, 10, 8, 2, 0, 2, 15, sword, bow, arrows, 'Basic', True, 'Basic', True)
         elif class_selection == 'Hunter':
             print("You are now a Hunter!")
-            return Player('Hunter', name, 1, 0, 5, 22, 12, 12, 1, 1, 1, 12, sword, bow, 'Basic', True, 'Basic', True)
+            return Player('Hunter', name, 1, 0, 5, 22, 12, 12, 1, 1, 1, 12, sword, bow, arrows, 'Basic', True, 'Basic', True)
         else:
             print("Please select a valid class!")

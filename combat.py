@@ -59,6 +59,7 @@ class Combat:
         self.player_movement_action = True
         self.enemy_special_attack = False
         self.enemy_moved = False
+        self.rounds = 0
 
         room_size = room_data['Size']
         self.room_map = []
@@ -81,12 +82,28 @@ class Combat:
             self.room_map[enemy_row][enemy_column] = 'Enemy'
             enemy.set_coordinates(enemy_row, enemy_column)
 
+    def update_map(self):
+        new_enemy_row = self.enemy.row
+        new_enemy_column = self.enemy.column
+
+        for row in range(len(self.room_map)):
+            for column in range(len(self.room_map[row])):
+                if self.room_map[row][column] in ('Enemy', 'Player'):
+                    self.room_map[row][column] = 'Empty'
+
+        self.room_map[new_enemy_row][new_enemy_column] = 'Enemy'
+        self.room_map[self.player_row][self.player_column] = 'Player'
+
     def player_turn(self):
-        player_options = ['Attack', 'Run', 'Defend', 'Use consumable', 'Dash', 'Move']
+        self.update_map()
+        player_options = ['Attack', 'Run', 'Defend', 'Use consumable', 'Dash', 'Move', 'Map', 'End turn']
         player_turn = True
         self.player_turn_action = True
         self.player_bonus_action = True
+        self.player_movement_action = True
+        self.player_movement_speed = self.modifier('Player movement')
         self.dashing = False
+        self.rounds += 1
 
         if self.player.class_action_available:
             player_options.append('Class action')
@@ -107,6 +124,8 @@ class Combat:
             self.enemy.restore_dex()
             self.hunter_net -= 1
 
+        self.player_map()
+
         while player_turn:
             if self.enemy.health <= 0:
                 return 'Victory'
@@ -123,13 +142,22 @@ class Combat:
                 print(f"Full action - Attack/Dash{'/Run' if 'Run' in player_options else ''}")
             if self.player_bonus_action:
                 print(f"Bonus action - Defend/Use consumable/Attack (spells){'/Class action' if 'Class action' in player_options else ''}")
-            if self.player_movement_action:
-                print(f"Movement action - Move")
+            print("Movement action - Map", "/Move" if self.player_movement_action else '')
             player_action = self.get_player_action(f"What would you like to do? ", player_options)
 
-            #the function checks for player actions inside the function
-            if player_action == 'Attack': #both
+            #ends player turn
+            if player_action == 'End turn':
+                player_turn = False
+                break
+            #requires no action
+            elif player_action == 'Map':
+                self.player_map()
+
+            #the function checks for player actions inside the function, makes sure they have an action
+            elif player_action == 'Attack' and (self.player_turn_action or self.player_bonus_action): #both
                 self.attack()
+            elif player_action == 'Attack' and self.player_turn_action == False and self.player_bonus_action == False: 
+                print("You only have movement actions left!")
 
             elif player_action == 'Move' and self.player_movement_action:
                 self.move()
@@ -167,13 +195,14 @@ class Combat:
             if choice in options:
                 return choice
             else:
-                print("Invalid choice!")
+                print("Invalid choice! (Type 'End turn' to end your turn early.)")
 
     def move(self):
-        if self.player_movement_speed == -1:
-            self.player_movement_speed = self.modifier('Player movement')
+        if self.dashing:
+            self.dashing = False
+            self.player_movement_speed += self.modifier('Player movement')
         print("")
-        print("You prepare to move. You take in the battleield.")
+        print("You prepare to move. You take in the battlefield.")
         print("Your player is represented by the @ symbol")
         print("Enemies are represented by an x and walls are represented by a #")
         while self.player_movement_speed > 0:
@@ -189,7 +218,6 @@ class Combat:
 
         if self.player_movement_speed == 0:
             self.player_movement_action = False
-            self.player_movement_speed -= 1
             self.player_map()
             print("You have no movement remaining!")
             input()
@@ -429,13 +457,16 @@ class Combat:
         melee_bonus_turns = 1
         ranged_bonus_turns = 1
 
-        if self.player.class_name == 'Rogue' and self.player.melee.attack_type == 'Light':
+        if self.player.ranged_ammo.amount <= 0:
+            attack_options.remove('Ranged')
+            print("You have no arrows left!")
+        if self.player.class_name == 'Rogue' and self.player.melee.attack_type == 'Light' and self.rounds == 1:
             attack_options.append('Sneak attack')
         if self.player.special_attack_available:
             attack_options.append('Special attack')
 
         if self.player_turn_action:
-            attack_type = self.get_player_action(f"How do you want to attack? (Melee/Ranged/Spell{'/Sneak attack' if 'Sneak attack' in attack_options else ''}{'/Special attack' if 'Special attack' in attack_options else ''}) ", attack_options)
+            attack_type = self.get_player_action(f"How do you want to attack? (Melee/Spell{'/Ranged' if 'Ranged' in attack_options else ''}{'/Sneak attack' if 'Sneak attack' in attack_options else ''}{'/Special attack' if 'Special attack' in attack_options else ''}) ", attack_options)
         elif self.player_bonus_action:
             attack_type = self.get_player_action("How do you want to attack? (Spell/Leave) ", ('Spell', 'Leave'))
 
@@ -464,8 +495,28 @@ class Combat:
         if spell_cast == None and attack_type == 'Spell':
             return
 
-        enemy_ac = self.modifier('Enemy ac')
+        #checks if the player can hit the enemy with the selected attack
+        if attack_type == 'Ranged':
+            attack_status = pathfinding.raytracing(self.room_map, (self.player_row, self.player_column), (self.enemy.row, self.enemy.column), self.player.ranged.attack_range)
+        elif attack_type == 'Spell':
+            attack_status = pathfinding.raytracing(self.room_map, (self.player_row, self.player_column), (self.enemy.row, self.enemy.column), spell_cast.range)
+        elif attack_type in ('Melee', 'Sneak attack'):
+            attack_status = pathfinding.raytracing(self.room_map, (self.player_row, self.player_column), (self.enemy.row, self.enemy.column), 1)
 
+        if attack_status in ('Out of range', 'Hits wall'):
+            print("Your attack", "can't reach the enemy." if attack_status == 'Out of range' else 'hits a wall.')
+            if attack_type in ('Ranged', 'Melee', 'Sneak attack'):
+                self.player_turn_action = True
+            elif attack_type == 'Spell':
+                if spell_cast.action == 'Action':
+                    self.player_turn_action = True
+                elif spell_cast.action == 'Bonus action':
+                    self.player_bonus_action = True
+            return
+        
+        #if the attack can hit, calculates enemy AC and player bonuses
+        enemy_ac = self.modifier('Enemy ac')
+        
         if self.player.ranged_skill >= 5:
             ranged_bonus_turns += 1
         if self.player.melee_skill >= 5:
@@ -478,14 +529,6 @@ class Combat:
         if self.player.melee.attack_type == 'Light':
             melee_bonus_turns += 1
 
-        if attack_type in ('Ranged', 'Spell'):
-            attack_status = pathfinding.raytracing(self.room_map, (self.player_row, self.player_column), (self.enemy.row, self.enemy.column), spell_cast.range)
-        elif attack_type == 'Melee':
-            attack_status = pathfinding.raytracing(self.room_map, (self.player_row, self.player_column), (self.enemy.row, self.enemy.column), 1)
-
-        if attack_type in ('Out of range', 'Hits wall'):
-            print("Your attack ", "can't reach the enemy," if attack_type == 'Out of range' else 'hits a wall.')
-            return
         player_attacking_turn = True
         while player_attacking_turn:
             if self.enemy.health <= 0:
@@ -493,6 +536,8 @@ class Combat:
             attack_lands = False
             if attack_type == 'Ranged':
                 to_hit = self.modifier('Ranged')
+                self.player.ranged_ammo.use_item(1)
+                print("You use an arrow!")
             elif attack_type == 'Melee':
                 to_hit = self.modifier('Melee')
 
@@ -558,6 +603,7 @@ class Combat:
         attack_status = pathfinding.raytracing(self.room_map, (self.player_row, self.player_column), (self.enemy.row, self.enemy.column), 1)
         if attack_status == 'Out of range':
             print(f"You can't reach the {self.enemy.name}")
+            self.player_turn_action = True
             return
         self.player_turn_action = False
         score = self.reaction_time('Special attack')
@@ -651,8 +697,9 @@ class Combat:
 
     def dash(self):
         self.player_turn_action = False
+        self.player_movement_action = True
         self.dashing = True
-        print("Your movement speed is effectively doubled for this turn!")
+        print("Your movement speed is doubled for this turn!")
 
     def modifier(self, type):
         if type == 'Melee':
@@ -664,16 +711,12 @@ class Combat:
         elif type == 'Player ac':
             return (10 + (self.player.stat_modifier(self.player.dexterity)))
         elif type == 'Player movement':
-            if self.dashing:
-                self.dashing = False
-                return max(2, (self.player.stat_modifier(self.player.dexterity) + self.player.stat_modifier(self.player.strength)))
-            else:
-                return max(2, ((self.player.stat_modifier(self.player.dexterity) + self.player.stat_modifier(self.player.strength)) // 2))
+            return max(3, (((self.player.stat_modifier(self.player.dexterity) + self.player.stat_modifier(self.player.strength)) // 2) + 3))
         elif type == 'Enemy ac':
             return (10 + (self.enemy.stat_modifier(self.enemy.dexterity)))
         elif type == 'Enemy movement':
             self.enemy_moved = True
-            return max(2, ((self.enemy.stat_modifier(self.enemy.dexterity) + self.enemy.stat_modifier(self.enemy.strength)) // 2))
+            return max(3, (((self.enemy.stat_modifier(self.enemy.dexterity) + self.enemy.stat_modifier(self.enemy.strength)) // 2) + 3))
         elif type == 'Enemy melee':
             return (random.randint(1,20) + (self.enemy.stat_modifier(self.enemy.strength)) + (self.enemy.level // 2))
         elif type == 'Enemy ranged':
@@ -709,6 +752,7 @@ class Combat:
         return total
 
     def enemy_turn(self):
+        self.update_map()
         enemy_action = None
         self.enemy_moved = False
         if self.poison > 0:
@@ -752,9 +796,11 @@ class Combat:
 
             if attack_status in ('Out of range', 'Hits wall') and self.enemy_moved == False:
                 enemy_path = pathfinding.enemy_movement(self.room_map, (self.enemy.row, self.enemy.column), (self.player_row, self.player_column), self.modifier('Enemy movement'))
-                for direction in enemy_path:
-                    self.enemy.move(direction)
-                print("The enemy moves.")
+                if len(enemy_path) > 0:
+                    for direction in enemy_path:
+                        self.enemy.move(direction)
+                    print("The enemy moves.")
+                    self.update_map()
             elif attack_status in ('Out of range', 'Hits wall') and self.enemy_moved:
                 return
             elif attack_status == 'Hits enemy':
@@ -818,10 +864,10 @@ class Combat:
             return 'Melee attack'
 
     def enemy_hit_attempt(self, type, attack_range):
-        if type == 'Melee attack':
-            return pathfinding.raytracing(self.room_map, (self.enemy.row, self.enemy.column), (self.player_row, self.player_column), 1)
+        if type in ('Melee attack', 'Special attack'):
+            return pathfinding.raytracing(self.room_map, (self.enemy.row, self.enemy.column), (self.player_row, self.player_column), 1, 'Enemy')
         elif type == 'Ranged attack':
-            return pathfinding.raytracing(self.room_map, (self.enemy.row, self.enemy.column), (self.player_row, self.player_column), attack_range)
+            return pathfinding.raytracing(self.room_map, (self.enemy.row, self.enemy.column), (self.player_row, self.player_column), attack_range, 'Enemy')
 
     def enemy_death(self):
         print(f"The {self.enemy.name} has died!")

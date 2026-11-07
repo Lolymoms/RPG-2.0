@@ -43,13 +43,13 @@ class Enemy:
 
     def move(self, direction):
         directions = {
-            'Up' : (1, 0),
-            'Down' : (-1, 0),
+            'Up' : (-1, 0),
+            'Down' : (1, 0),
             'Right' : (0, 1),
             'Left' : (0, -1)
         }
         self.row += directions[direction][0]
-        self.column += directions[directions][1]
+        self.column += directions[direction][1]
 
 feral_dog = Enemy('Feral Dog', 1, 1, 20, 10, 1, 15, 6)
 cave_spider = Enemy('Cave Spider', 1, 1, 12, 17, 1, 14, 8)
