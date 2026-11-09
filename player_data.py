@@ -152,6 +152,9 @@ class Player:
     def learn_spell(self, spell):
         self.known_spells.append(spell)
 
+    def mana_reclaim(self):
+        self.mana += int(self.max_mana * 0.5)
+
 
 class Item:
     def __init__(self, name, type, amount=1, healing=0, damage=0, attack_range=1, damage_type='None', attack_type='Medium'):

@@ -203,12 +203,9 @@ class Combat:
             self.player_movement_speed += self.modifier('Player movement')
         print("")
         print("You prepare to move. You take in the battlefield.")
-        print("Your player is represented by the @ symbol")
-        print("Enemies are represented by an x and walls are represented by a #")
         while self.player_movement_speed > 0:
             self.player_map()
             print(f"You have {self.player_movement_speed} squares of movement remaining.")
-            input()
             movement_condition = self.movement()
             if movement_condition == 'Stop':
                 print("You stay where you are.")
@@ -226,6 +223,7 @@ class Combat:
     def player_map(self):
         map_rows = len(self.room_map)
         map_columns = len(self.room_map[0])
+        print("@ - You   x - Enemy   # - Wall")
 
         #creates LOCAL rows and columns, used for later logic
         row_local = -1
@@ -422,7 +420,6 @@ class Combat:
                 if accessing_consumables:
                     print("Please enter a valid consumable! Type leave to leave.")
 
-    #make this work!!
     def class_action(self):
         self.player_bonus_action = False
         self.player.class_action_available = False
@@ -448,6 +445,10 @@ class Combat:
                 print("You deploy a net on your enemy. Their dexterity is halved for two rounds.")
                 self.hunter_net += 2
                 self.enemy.half_dex()
+                input()
+            elif self.player.class_name == 'Mage':
+                print("You focus, and draw mana from the energy in the environment. +50% max mana")
+                self.player.mana_reclaim()
                 input()
 
     def attack(self):
