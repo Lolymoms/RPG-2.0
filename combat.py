@@ -796,7 +796,7 @@ class Combat:
             attack_status = self.enemy_hit_attempt(enemy_action, self.enemy.ranged_attack_range)
 
             if attack_status in ('Out of range', 'Hits wall') and self.enemy_moved == False:
-                enemy_path = pathfinding.enemy_movement(self.room_map, (self.enemy.row, self.enemy.column), (self.player_row, self.player_column), self.modifier('Enemy movement'))
+                enemy_path = pathfinding.enemy_movement(self.room_map, (self.enemy.row, self.enemy.column), (self.player_row, self.player_column), self.modifier('Enemy movement'), self.enemy.attack_type)
                 if len(enemy_path) > 0:
                     for direction in enemy_path:
                         self.enemy.move(direction)

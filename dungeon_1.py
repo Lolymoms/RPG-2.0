@@ -11,6 +11,14 @@ lore_counter = 1
 #tracks how many times a player has been in a chest room
 chest_counter = 1
 
+def get_string(text, options):
+    while True:
+        selection = input(text).capitalize()
+        if selection in options:
+            return selection
+        else:
+            print("Please pick a valid option")
+
 def enemy_room(player, row, column):
     print("You walk into the room and see something in the shadows...")
     input()
@@ -27,7 +35,7 @@ def enemy_room(player, row, column):
         room_data_dog = {
             'Player' : (0, 0),
             'Size' : (4, 4),
-            'Walls' : [(1, 2), (2, 1)],
+            'Walls' : [(1, 2), (2, 2), (2, 1)],
             'Enemies': {
                 dog_1 : (3, 3),
             }
@@ -265,6 +273,39 @@ def staircase_1(player, row, column):
     player.add_experience(player.level_up_experience_calculator())
     return 'Staircase'
 
+def shop_1(player):
+    print("You descend the staircase and see a strange house with a green man sleeping. As you approach, he stirrs.")
+    print("He jumps at your sight, and exclaims excitedly.")
+    print("'My my! Another adventurer!' he says 'Come in, come in!'")
+    print("He motions for you to enter the house. You decide to do so.")
+    print("'You're the first adventurer I've seen in... years!' He yelps, 'I didn't think the warden would go down so soon... well that's not important!'")
+    print("'I can tell you're new here, let me give you something to aid in your travels.' He says.")
+    free_item_selection = get_string("What do you want? (Melee/Ranged/Armor) ", ('Melee', 'Ranged', 'Armor'))
+    if free_item_selection == 'Melee':
+        print("'Oh a melee weapon! Good choice!' Says the shopkeeper.")
+        print("He hands over a sword that's shiny, and unnaturally light.")
+        print("(Equip the longsword in the inventory menu!)")
+        from player_data import Item
+        longsword = Item('Longsword', 'Melee', damage=8, damage_type='Slashing')
+        player_data.player_inventory.append(longsword)
+    elif free_item_selection == 'Ranged':
+        print("'Ah, a ranged weapon. You dont like to get hurt huh?' Says the shopkeeper.")
+        print("He hands over what looks to be a crossbow, but it's a bit old")
+        print("(Equip the crossbow in the inventory menu!)")
+        from player_data import Item
+        crossbow = Item('Crossbow', 'Ranged', damage=10, damage_type='Piercing')
+        player_data.player_inventory.append(crossbow)
+    elif free_item_selection == 'Armor':
+        print("'Ah, the humble suit of armor. May this protect you for many days.' The shopkeeper says.")
+        print("He hands over a suit of what looks to be chainmail. It's heavy, but definitely better than your current armor.")
+        player.add_armor(2)
+
+    print("Well I'd love to give you more stuff, but I wouldn't be in buisness if I gave everything away for free! I'll sell you things though.")
+    open_shop = get_string("Open the shop? (Yes/No) ", ('Yes', 'No'))
+    if open_shop == 'No':
+        return
+    elif open_shop == 'Yes':
+        pass
 
 dungeon_map_1 = [
     ['Entrance' , chest_room, vault_room, rest_room],

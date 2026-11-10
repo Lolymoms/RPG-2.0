@@ -1,5 +1,5 @@
 #returns a list of directions, as strings, for the enemy to follow to reach the player
-def enemy_movement(room, start_pos, end_pos, available_movement):
+def enemy_movement(room, start_pos, end_pos, available_movement, type):
     path = pathfinding(room, start_pos, end_pos)
     if path == 'No path':
         return []
@@ -10,8 +10,12 @@ def enemy_movement(room, start_pos, end_pos, available_movement):
         'Left' : (0, -1)
     }
     direction_list = []
+    if type == 'Melee':
+        distance_from_player = 2
+    elif type == 'Ranged':
+        distance_from_player = 4
     for movement in range(available_movement):
-        if movement == (len(path) - 2):
+        if movement == (len(path) - distance_from_player):
             break
         target_coordinate = path[movement + 1]
         for direction in directions:

@@ -31,7 +31,6 @@ def movement(map, action):
     }
     #figures out how big the map is
     max_direction = (len(map) - 1)
-    #1 is up, 2 is left, 3 is down, 4 is right
 
     #finds out which directions are valid for the player's position, heavily helped by chatgpt
     for direction, (row_change, column_change) in directions.items():
